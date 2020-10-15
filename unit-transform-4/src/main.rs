@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::ops::Add;
 use std::ops::Sub;
 use core::any::type_name;
+use std::mem::size_of;
 use std::marker::PhantomData;
 
 // 度量类型 质量 长度 时间
@@ -194,14 +195,16 @@ fn main() {
     println!("_1p = {}", m4); // 转到基本单位类型
 
     // 不同类型单位不能转换
-    let e1 = _2kg + _1m._into();
-    println!("error: _2kg + _1m = {}", e1);
+    //let e1 = _2kg + _1m._into();
+    //println!("error: _2kg + _1m = {}", e1);
 
-    println!("type_name(Meter) = {}", type_name::<Meter>());
-    println!("type_name(Pound) = {}", type_name::<Pound>());
+    println!("type_name(f64) = {} size_of(f64) = {}", type_name::<f64>(), size_of::<f64>());
 
-    println!("type_name(Mm) = {}", type_name::<Mm>());
-    println!("type_name(Mm2) = {}", type_name::<Mm2>());
+    println!("type_name(Meter) = {} size_of(Meter) = {}", type_name::<Meter>(), size_of::<Meter>());
+    println!("type_name(Pound) = {} size_of(Pound) = {}", type_name::<Pound>(), size_of::<Pound>());
+
+    println!("type_name(Mm) = {} size_of(Mm) = {}", type_name::<Mm>(), size_of::<Mm>());
+    println!("type_name(Mm2) = {} size_of(Mm2) = {}", type_name::<Mm2>(), size_of::<Mm2>());
 
     let _10mm2 = Mm2::new(10.0);
     println!("{}", _10mm2 + _1m._into());
