@@ -15,7 +15,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 }
 
 impl<'a, T> Iter<'a, T> {
-    pub fn current(&self) -> Option<&T> {
+    fn peek(&self) -> Option<&T> {
         match self.0 {
             Some(ref node) => Some(&node.elem),
             None => None,

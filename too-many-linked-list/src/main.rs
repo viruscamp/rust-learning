@@ -62,8 +62,8 @@ fn main() {
     let mut new_stack = None;
     let mut iter = stack.iter_mut();
     while let Some(v) = iter.next() {
-        dbg!(v, iter.current());
-        if let Some(4) = iter.current() {
+        dbg!(v, iter.peek());
+        if let Some(4) = iter.peek() {
             new_stack = iter.split_after();
         }
     }

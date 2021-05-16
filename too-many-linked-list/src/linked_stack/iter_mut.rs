@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use super::*;
 
 pub struct IterMut<'a, T>(Option<&'a mut Node<T>>);
@@ -17,13 +15,13 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 }
 
 impl<'a, T> IterMut<'a, T> {
-    pub fn current(&self) -> Option<&T> {
+    pub fn peek(&self) -> Option<&T> {
         match self.0 {
             Some(ref node) => Some(&node.elem),
             None => None,
         }
     }
-    pub fn current_mut(&mut self) -> Option<&mut T> {
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
         match self.0 {
             Some(ref mut node) => Some(&mut node.elem),
             None => None,
