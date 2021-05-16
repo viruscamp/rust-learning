@@ -14,13 +14,22 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+impl<'a, T> Iter<'a, T> {
+    pub fn current(&self) -> Option<&T> {
+        match self.0 {
+            Some(ref node) => Some(&node.elem),
+            None => None,
+        }
+    }
+}
+
 impl<T> LinkedStack<T> {
     pub fn iter(&self) -> impl Iterator<Item=&T> {
         Iter(&self.head)
     }
 }
 
-//region verbose
+// region verbose
 
 // 文章的写法
 pub struct IterBook<'a, T> {
@@ -63,4 +72,4 @@ impl<T> LinkedStack<T> {
         IterVerbose{ next: &self.head }
     }
 }
-//endregion
+// endregion

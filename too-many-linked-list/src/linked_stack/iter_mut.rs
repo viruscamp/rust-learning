@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use super::*;
 
 pub struct IterMut<'a, T>(Option<&'a mut Node<T>>);
@@ -14,8 +16,28 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     }
 }
 
+impl<'a, T> IterMut<'a, T> {
+    pub fn current(&self) -> Option<&T> {
+        match self.0 {
+            Some(ref node) => Some(&node.elem),
+            None => None,
+        }
+    }
+    pub fn current_mut(&mut self) -> Option<&mut T> {
+        match self.0 {
+            Some(ref mut node) => Some(&mut node.elem),
+            None => None,
+        }
+    }
+    pub fn split_after(&mut self) -> Option<LinkedStack<T>> {
+        self.0.as_mut().map(|node| {
+            LinkedStack{ head: node.next.take() }
+        })
+    }
+}
+
 impl<T> LinkedStack<T> {
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut T> {
+    pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut(self.head.as_mut().map(|node| node.as_mut()))
     }
 }
