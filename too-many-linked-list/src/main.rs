@@ -64,10 +64,33 @@ fn main() {
     while let Some(v) = iter.next() {
         dbg!(v, iter.peek());
         if let Some(4) = iter.peek() {
-            new_stack = iter.split_after();
+            new_stack = Some(iter.split_after());
         }
     }
     dbg!(&stack, &new_stack);
+
+    let mut iter = stack.iter();
+    println!("stack.iter.peek={:?}", iter.peek());
+    //stack.push(44); // 不可以在持有 iter 的情况下更改
+    //println!("stack.iter.peek={:?}", iter.peek());
+
+    let mut into_iter = stack.into_iter();
+    //println!("into_iter.0={:?}", into_iter.0); // tuple struct 默认还是 private 的, 可加 pub
+
+    let mut stack = LinkedStack::new();
+    stack.push(3);
+    stack.push(4);
+    stack.push(5);
+    dbg!(&stack);
+
+    let mut iter = stack.iter_mut();
+    while let Some(v) = iter.next() {
+        dbg!(v, iter.peek());
+        if let Some(4) = iter.peek() {
+            iter.insert_after(88);
+        }
+    }
+    dbg!(&stack);
 
     println!("Hello, world!");
 }

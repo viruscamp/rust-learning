@@ -1,8 +1,25 @@
 use super::*;
 
-pub struct Iter<'a, T>(&'a Link<T>);
+pub type Iter<'a, T> = IterMy<'a, T>;
+impl<T> LinkedStack<T> {
+    pub fn iter(&self) -> Iter<T> {
+        Iter::new(self)
+    }
+    pub fn iter_my(&self) -> IterMy<T> {
+        IterMy::new(self)
+    }
+    pub fn iter_book(&self) -> IterBook<T> {
+        IterBook::new(self)
+    }
+    pub fn iter_verbose(&self) -> IterVerbose<T> {
+        IterVerbose::new(self)
+    }
+}
 
-impl<'a, T> Iterator for Iter<'a, T> {
+// 始终有一个借用到 LinkedStack 内部, 阻止其 drop
+pub struct IterMy<'a, T>(&'a Link<T>);
+
+impl<'a, T> Iterator for IterMy<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
         // almost same as peek
@@ -14,8 +31,11 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> Iter<'a, T> {
-    fn peek(&self) -> Option<&T> {
+impl<'a, T> IterMy<'a, T> {
+    pub fn new(list: &LinkedStack<T>) -> IterMy<T> {
+        IterMy(&list.head)
+    }
+    pub fn peek(&self) -> Option<&T> {
         match self.0 {
             Some(ref node) => Some(&node.elem),
             None => None,
@@ -23,15 +43,9 @@ impl<'a, T> Iter<'a, T> {
     }
 }
 
-impl<T> LinkedStack<T> {
-    pub fn iter(&self) -> impl Iterator<Item=&T> {
-        Iter(&self.head)
-    }
-}
-
 // region verbose
 
-// 文章的写法
+// 文章的写法, 原 LinkedStack 空, iter 取完后, 为空, 断开所有借用
 pub struct IterBook<'a, T> {
     next: Option<&'a Node<T>>,
 }
@@ -46,7 +60,19 @@ impl<'a, T> Iterator for IterBook<'a, T> {
     }
 }
 
-// 我的写法
+impl<'a, T> IterBook<'a, T> {
+    pub fn new(list: &LinkedStack<T>) -> IterBook<T> {
+        IterBook{ next: list.head.as_deref() }
+    }
+    pub fn peek(&self) -> Option<&T> {
+        match self.next {
+            Some(node) => Some(&node.elem),
+            None => None,
+        }
+    }
+}
+
+// 我的写法 与第一个没有本质区别
 pub struct IterVerbose<'a, T> {
     next: &'a Link<T>,
 }
@@ -64,12 +90,10 @@ impl<'a, T> Iterator for IterVerbose<'a, T> {
     }
 }
 
-impl<T> LinkedStack<T> {
-    pub fn iter_book(&self) -> impl Iterator<Item=&T> {
-        IterBook{ next: self.head.as_deref() }
-    }
-    pub fn iter_verbose(&self) -> impl Iterator<Item=&T> {
-        IterVerbose{ next: &self.head }
+impl<'a, T> IterVerbose<'a, T> {
+    pub fn new(list: &LinkedStack<T>) -> IterVerbose<T> {
+        IterVerbose{ next: &list.head }
     }
 }
+
 // endregion

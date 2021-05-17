@@ -122,10 +122,14 @@ impl<T> LinkedStack<T> {
     /// assert_eq!(s.pop_back(), None);
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
-        pop_back_recursive(&mut self.head)
+        //pop_back_recursive(&mut self.head)
+        let (new_next, pop_val) = pop_back_replace(self.head.take());
+        self.head = new_next;
+        pop_val
     }
 }
 
+// 独占借用递归 pop
 fn pop_back_recursive<T>(link: &mut Link<T>) -> Option<T> {
     // 这个 match 对应 link.as_mut().and_then(|sub_node| {}) 写不出, 因为里面再次用了 link
     match link {
@@ -134,6 +138,21 @@ fn pop_back_recursive<T>(link: &mut Link<T>) -> Option<T> {
             pop_back_recursive(&mut sub_node.next).or_else(||
                 link.take().map(|n| n.elem)
             )
+        }
+    }
+}
+
+// 子表 take 掉, 还个新的子表
+fn pop_back_replace<T>(link: Link<T>) -> (Link<T>, Option<T>) {
+    match link {
+        None => (None, None),
+        Some(mut node) => {
+            let (new_next, pop_val) = pop_back_replace(node.next);
+            node.next = new_next;
+            match pop_val {
+                None => (None, Some(node.elem)),
+                Some(_) => (Some(node), pop_val),
+            }
         }
     }
 }
