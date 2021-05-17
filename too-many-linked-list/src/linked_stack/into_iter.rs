@@ -53,8 +53,8 @@ impl<T> Iterator for IntoIterVerbose<T> {
 }
 
 impl<T> IntoIterVerbose<T> {
-    pub fn new(list: LinkedStack<T>) -> Self {
-        Self{ next: list.head }
+    pub fn new(mut list: LinkedStack<T>) -> Self {
+        Self{ next: list.head.take() }
     }
 }
 

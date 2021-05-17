@@ -16,6 +16,35 @@ mod iter;
 mod into_iter;
 mod iter_mut;
 
+#[cfg(test)]
+mod test;
+
+impl<T> Drop for LinkedStack<T> {
+    default fn drop(&mut self) {
+        let mut link = self.head.take();
+        let mut count = 1usize;
+
+        while let Some(mut boxed_node) = link {
+            println!("drop {}th element", count);
+            count += 1;
+            link = boxed_node.next.take();
+        }
+    }
+}
+
+impl<T: std::fmt::Debug> Drop for LinkedStack<T> {
+    fn drop(&mut self) {
+        let mut link = self.head.take();
+        let mut count = 1usize;
+
+        while let Some(mut boxed_node) = link {
+            println!("drop {}th element: {:?}", count, &boxed_node.elem);
+            count += 1;
+            link = boxed_node.next.take();
+        }
+    }
+}
+
 impl<T> LinkedStack<T> {
     /// Create a new empty LinkedStack.
     /// # Examples
@@ -41,6 +70,10 @@ impl<T> LinkedStack<T> {
     /// ```
     pub fn peek(&self) -> Option<&T> {
         self.head.as_ref().map(|node| &node.elem )
+    }
+
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
+        self.head.as_mut().map(|node| &mut node.elem )
     }
 
     /// # Examples
