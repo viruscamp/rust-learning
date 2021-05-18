@@ -25,7 +25,7 @@ impl<T> Drop for LinkedStack<T> {
         let mut count = 1usize;
 
         while let Some(mut boxed_node) = link {
-            println!("drop {}th element", count);
+            //println!("drop {}th element", count);
             count += 1;
             link = boxed_node.next.take();
         }
@@ -38,7 +38,7 @@ impl<T: std::fmt::Debug> Drop for LinkedStack<T> {
         let mut count = 1usize;
 
         while let Some(mut boxed_node) = link {
-            println!("drop {}th element: {:?}", count, &boxed_node.elem);
+            //println!("drop {}th element: {:?}", count, &boxed_node.elem);
             count += 1;
             link = boxed_node.next.take();
         }

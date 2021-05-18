@@ -23,8 +23,7 @@ impl<'a, T> Iterator for IterMy<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
         // almost same as peek
-        self.0.as_ref()
-        .map(|node| {
+        self.0.as_ref().map(|node| {
             self.0 = &node.next;
             &node.elem
         })
@@ -36,8 +35,9 @@ impl<'a, T> IterMy<'a, T> {
         IterMy(&list.head)
     }
     pub fn peek(&self) -> Option<&T> {
+        //self.0.as_ref().map(|node| &node.elem)
         match self.0 {
-            Some(ref node) => Some(&node.elem),
+            Some(node) => Some(&node.elem),
             None => None,
         }
     }
