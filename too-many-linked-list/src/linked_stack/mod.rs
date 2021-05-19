@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 #[derive(Debug)]
 struct Node<T> {
     elem: T,
@@ -155,10 +157,20 @@ impl<T> LinkedStack<T> {
     /// assert_eq!(s.pop_back(), None);
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
-        //pop_back_recursive(&mut self.head)
-        let (new_next, pop_val) = pop_back_replace(self.head.take());
-        self.head = new_next;
-        pop_val
+        let mut link = &mut self.head;
+        match link {
+            None => None,
+            Some(ref mut node) => {
+                let mut node_ptr: *mut Node<T> = node.as_mut();
+                unsafe {
+                    while let Some(ref mut node) = (*node_ptr).next {
+                        link = &mut (*node_ptr).next;
+                        node_ptr = node.as_mut();
+                    }
+                }
+                link.take().map(|node| node.elem)
+            }
+        }
     }
 }
 
