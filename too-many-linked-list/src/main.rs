@@ -67,7 +67,7 @@ fn main() {
     dbg!(&stack);
 
     let mut new_stack = None;
-    let mut iter = stack.iter_mut();
+    let mut iter = stack.iter_mut_book();
     while let Some(v) = iter.next() {
         dbg!(v, iter.peek());
         if let Some(4) = iter.peek() {
@@ -90,7 +90,7 @@ fn main() {
     stack.push(5);
     dbg!(&stack);
 
-    let mut iter = stack.iter_mut();
+    let mut iter = stack.iter_mut_book();
     while let Some(v) = iter.next() {
         dbg!(v, iter.peek());
         if let Some(4) = iter.peek() {
