@@ -1,6 +1,6 @@
 use super::*;
 
-pub type IterMut<'a, T> = IterMutBook<'a, T>;
+pub type IterMut<'a, T> = IterMutMy<'a, T>;
 impl<T> LinkedStack<T> {
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut::new(self)
@@ -49,7 +49,7 @@ impl<'a, T> IterMutBook<'a, T> {
         })
     }
     // 删掉下一个节点
-    pub fn delete_one_after(&mut self) -> Option<T> {
+    pub fn delete_after(&mut self) -> Option<T> {
         todo!()
     }
     // split + join
@@ -62,24 +62,20 @@ impl<'a, T> IterMutBook<'a, T> {
     }
 }
 
-//region error
 // 始终有一个借用到 LinkedStack 内部, 阻止其 drop
 pub struct IterMutMy<'a, T>(&'a mut Link<T>); // 这东西我现在写不出来
 // 应该可以实现 insert_at 空串可插入 走完也可插入
-/*
 impl<'a, T> Iterator for IterMutMy<'a, T> {
     type Item = &'a mut T;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.0 {
-            None => None,
-            Some(node) => {
-                self.0 = &mut node.next;
-                Some(&mut node.elem)
-            }
-        }
+        self.0.take().map(|node| unsafe {
+            let node_ptr: *mut Node<T> = Box::into_raw(node);
+            *self.0 = Some(Box::from_raw(node_ptr));
+            self.0 = &mut (*node_ptr).next;
+            &mut (*node_ptr).elem
+        })
     }
 }
-*/
 
 impl<'a, T> IterMutMy<'a, T> {
     pub fn new(list: &'a mut LinkedStack<T>) -> IterMutMy<'a, T> {
@@ -91,14 +87,39 @@ impl<'a, T> IterMutMy<'a, T> {
     pub fn peek_mut(&mut self) -> Option<&mut T> {
         self.0.as_deref_mut().map(|node| &mut node.elem)
     }
-    /*
-    fn next_1(&mut self) -> Option<&'a mut T> {
-        self.0.as_deref_mut().map(|node| {
-            self.0 = &mut node.next;
-            &mut node.elem
-        })
+    pub fn split_at(&mut self) -> LinkedStack<T> {
+        LinkedStack {
+            head: self.0.take()
+        }
     }
-    */
+    pub fn insert_at(&mut self, elem: T) {
+        *self.0 = Some(Box::new(Node {
+            elem,
+            next: self.0.take(),
+        }))
+    }
+    // 删掉当前节点
+    pub fn delete_at(&mut self) -> Option<T> {
+        todo!()
+    }
+    // split + join
+    pub fn replace_at(&mut self, join: LinkedStack<T>) -> LinkedStack<T> {
+        todo!()
+    }
+    // 合并
+    pub fn insert_list_at(&mut self, join: LinkedStack<T>) -> Option<()> {
+        todo!()
+    }
+    fn next_verbose(&mut self) -> Option<&'a mut T> {
+        match self.0 {
+            None => None,
+            Some(node) => {
+                unsafe {
+                    let node_ptr: *mut Node<T> = node.as_mut();
+                    self.0 = &mut (*node_ptr).next;
+                    Some(&mut (*node_ptr).elem)
+                }
+            }
+        }
+    }
 }
-
-//endregion
