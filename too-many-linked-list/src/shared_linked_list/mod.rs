@@ -78,14 +78,14 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
 impl<'a, T> Iter<'a, T> {
     pub fn peek(&self) -> Option<&'a T> {
-        self.0.as_ref().map(|node| {
+        self.0.map(|node| {
             &node.elem
         })
     }
 
     pub fn fork(&self) -> SharedLinkedList<T> {
         SharedLinkedList {
-            head: self.0.as_ref().map(|node| (*node).clone())
+            head: self.0.map(|node| (*node).clone())
         }
     }
 }
