@@ -63,23 +63,34 @@ impl<'a, T> IterMutBook<'a, T> {
 }
 
 // 始终有一个借用到 LinkedStack 内部, 阻止其 drop
-pub struct IterMutMy<'a, T>(&'a mut Link<T>); // 这东西我现在写不出来
+pub struct IterMutMy<'a, T>(&'a mut Link<T>);
 // 应该可以实现 insert_at 空串可插入 走完也可插入
 impl<'a, T> Iterator for IterMutMy<'a, T> {
     type Item = &'a mut T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.take().map(|node| unsafe {
-            let node_ptr: *mut Node<T> = Box::into_raw(node);
-            *self.0 = Some(Box::from_raw(node_ptr));
-            self.0 = &mut (*node_ptr).next;
-            &mut (*node_ptr).elem
-        })
+        match self.0 {
+            None => None,
+            Some(node) => unsafe {
+                let node_ptr: *mut Node<T> = node.as_mut();
+                self.0 = &mut (*node_ptr).next;
+                Some(&mut (*node_ptr).elem)
+            }
+        }
     }
 }
 
 impl<'a, T> IterMutMy<'a, T> {
     pub fn new(list: &'a mut LinkedStack<T>) -> IterMutMy<'a, T> {
         IterMutMy(&mut list.head)
+    }
+    /// IterMut.next 的另一种写法, 要在闭包内修改, 先 take 再还回去
+    fn next_map(&mut self) -> Option<&mut T> {
+        self.0.take().map(|node| unsafe {
+            let node_ptr: *mut Node<T> = Box::into_raw(node);
+            *self.0 = Some(Box::from_raw(node_ptr));
+            self.0 = &mut (*node_ptr).next;
+            &mut (*node_ptr).elem
+        })
     }
     pub fn peek(&self) -> Option<&T> {
         self.0.as_deref().map(|node| &node.elem)
