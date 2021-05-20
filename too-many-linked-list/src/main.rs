@@ -4,8 +4,8 @@ pub mod bad;
 
 pub mod linked_stack;
 pub mod shared_linked_list;
-pub mod linked_deque;
-pub mod linked_queue;
+pub mod unsafe_queue;
+pub mod bad_safe_deque;
 
 use linked_stack::*;
 
