@@ -64,3 +64,32 @@ fn test_push_front_pop_back() {
     assert_eq!(list.pop_back(), Some(3));
     assert_eq!(list.pop_back(), None);
 }
+
+#[test]
+fn peek() {
+    let mut list = List::new();
+    assert!(list.peek_front().is_none());
+    assert!(list.peek_back().is_none());
+    assert!(list.peek_mut_front().is_none());
+    assert!(list.peek_mut_back().is_none());
+
+    list.push_front(1); list.push_front(2); list.push_front(3);
+
+    assert_eq!(&*list.peek_front().unwrap(), &3);
+    assert_eq!(&mut *list.peek_mut_front().unwrap(), &mut 3);
+    assert_eq!(&*list.peek_back().unwrap(), &1);
+    assert_eq!(&mut *list.peek_mut_back().unwrap(), &mut 1);
+}
+
+#[test]
+fn into_iter() {
+    let mut list = List::new();
+    list.push_front(1); list.push_front(2); list.push_front(3);
+
+    let mut iter = list.into_iter();
+    assert_eq!(iter.next(), Some(3));
+    assert_eq!(iter.next_back(), Some(1));
+    assert_eq!(iter.next(), Some(2));
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next(), None);
+}

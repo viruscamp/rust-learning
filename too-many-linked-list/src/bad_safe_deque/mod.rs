@@ -12,6 +12,7 @@ struct Node<T> {
     prev: Link<T>,
 }
 
+mod into_iter;
 mod iter;
 mod iter_mut;
 
@@ -24,22 +25,20 @@ impl<T> List<T> {
     }
 
     pub fn push_front(&mut self, elem: T) {
+        let mut new_node = Node {
+            elem,
+            next: None,
+            prev: None,
+        };
         match self.head.take() {
             Some(node) => {
-                let new_node = Arc::new(RwLock::new(Node {
-                    elem,
-                    next: Some(node.clone()),
-                    prev: None,
-                }));
+                new_node.next = Some(node.clone());
+                let new_node = Arc::new(RwLock::new(new_node));
                 node.write().unwrap().prev = Some(new_node.clone());
                 self.head = Some(new_node);
             }
             None => {
-                let new_node = Arc::new(RwLock::new(Node {
-                    elem,
-                    next: None,
-                    prev: None,
-                }));
+                let new_node = Arc::new(RwLock::new(new_node));
                 self.tail = Some(new_node.clone());
                 self.head = Some(new_node);
             }
@@ -105,6 +104,19 @@ impl<T> List<T> {
                 Err(_) => panic!(),
             }
         })
+    }
+
+    pub fn peek_front(&self) -> Option<&T> {
+        todo!()
+    }
+    pub fn peek_back(&self) -> Option<&T> {
+        todo!()
+    }
+    pub fn peek_mut_front(&mut self) -> Option<&mut T> {
+        todo!()
+    }
+    pub fn peek_mut_back(&mut self) -> Option<&mut T> {
+        todo!()
     }
 }
 
