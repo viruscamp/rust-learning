@@ -66,6 +66,7 @@ fn test_push_front_pop_back() {
 }
 
 #[test]
+#[ignore]
 fn peek() {
     let mut list = List::new();
     assert!(list.peek_front().is_none());
