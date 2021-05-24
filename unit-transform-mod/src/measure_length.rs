@@ -1,7 +1,3 @@
-#![feature(const_generics)]
-#![feature(associated_type_defaults)]
-#![feature(generic_associated_types)]
-
 use crate::measure::*;
 
 // 定义长度

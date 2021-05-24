@@ -1,7 +1,3 @@
-#![feature(const_generics)]
-#![feature(associated_type_defaults)]
-#![feature(generic_associated_types)]
-
 use crate::measure::*;
 
 // 定义长度
@@ -19,6 +15,8 @@ impl<const NAME: &'static str, const FACTOR: f64> Unit for LengthUnit<NAME, FACT
     const NAME: &'static str = NAME;
     const FACTOR: f64 = FACTOR;
     type Metric = LengthMetric;
+
+    const INSTANCE: Self = Self();
 }
 
 pub type Meter = Measure<<LengthMetric as Metric>::BaseUnit>;

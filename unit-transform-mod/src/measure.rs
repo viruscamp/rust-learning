@@ -1,12 +1,5 @@
-#![feature(const_generics)]
-#![feature(associated_type_defaults)]
-#![feature(generic_associated_types)]
-
 use std::fmt::Display;
 use std::ops::Add;
-use std::ops::Sub;
-use core::any::type_name;
-use std::mem::size_of;
 use std::marker::PhantomData;
 
 // 度量类型 质量 长度 时间
@@ -23,7 +16,7 @@ pub trait Metric<M: Metric = Self> {
 // type MassMetric = GenericMetric<"mass", GenericUnit<MassMetric1, "kg", 1.0>>; 类型循环依赖
 #[derive(Debug, Clone, Copy)]
 pub struct GenericMetric<const NAME: &'static str, BU: Unit<Self>>(PhantomData<BU>);
-impl<const NAME: &'static str, BU: Unit<Self>> Metric<Self> for GenericMetric<NAME, BU> {
+impl<const NAME: &'static str, BU: Unit<Self>> Metric for GenericMetric<NAME, BU> {
     const NAME: &'static str = NAME;
     type BaseUnit = BU;
 }

@@ -1,18 +1,11 @@
-#![feature(const_generics)]
-#![feature(associated_type_defaults)]
-#![feature(generic_associated_types)]
-
 use std::fmt::Display;
 use std::ops::Add;
-use std::ops::Sub;
-use core::any::type_name;
-use std::mem::size_of;
 use std::marker::PhantomData;
 
 // 度量类型 质量 长度 时间
 pub trait Metric {
     const NAME: &'static str;
-    type BaseUnit: Unit; // where BaseUnit::Metric == Self;
+    type BaseUnit: Unit; //where BaseUnit::Metric == Self;
 
     fn name() -> &'static str {
         Self::NAME
@@ -33,6 +26,8 @@ pub trait Unit {
     const FACTOR: f64;
     type Metric: Metric;
 
+    const INSTANCE: Self;
+
     fn factor() -> f64 {
         Self::FACTOR
     }
@@ -48,6 +43,8 @@ impl<M: Metric, const NAME: &'static str, const FACTOR: f64> Unit for GenericUni
     const NAME: &'static str = NAME;
     const FACTOR: f64 = FACTOR;
     type Metric = M;
+
+    const INSTANCE: Self = Self(PhantomData);
 }
 
 // 测量值 包括数值 单位
@@ -93,13 +90,30 @@ impl<U: Unit> Display for Measure<U> {
     }
 }
 
+/*
+pub trait From1<T>: Sized {
+    fn from(_: T) -> Self;
+}
+
+impl<T> From1<T> for T {
+    default fn from(src: T) -> Self {
+        src
+    }
+}
+
 // 无法实现 trait From
 // note: conflicting implementation in crate `core`: - impl<T> From<T> for T;
-/*
-pub impl<U1: Unit, U2: Unit> From<Measure<U2>> for Measure<U1> //where U1 != U2
+impl<U1: Unit, U2: Unit> From1<Measure<U2>> for Measure<U1> where U1 != U2
 {
-    fn from(src: Measure<U2>) -> Self {
+    default fn from(src: Measure<U2>) -> Measure<U1> {
         src._into()
+    }
+}
+
+// 泛型特化 确实替代了 impl<T> From<T> for T
+impl<U: Unit> From1<Measure<U>> for Measure<U> {
+    fn from(src: Measure<U>) -> Measure<U> {
+        src
     }
 }
 */

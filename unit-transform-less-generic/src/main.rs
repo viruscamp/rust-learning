@@ -1,7 +1,9 @@
 #![feature(const_generics)]
+//#![feature(generic_associated_types)]
 #![feature(associated_type_defaults)]
-#![feature(generic_associated_types)]
+#![feature(associated_type_bounds)]
 #![feature(const_type_name)]
+#![feature(specialization)]
 
 mod measure;
 mod measure_length;
