@@ -1,4 +1,5 @@
 #![feature(const_generics)]
+#![feature(const_evaluatable_checked)]
 #![feature(generic_associated_types)]
 #![feature(associated_type_defaults)]
 #![feature(associated_type_bounds)]
@@ -7,12 +8,12 @@
 mod measure;
 mod measure_length;
 mod measure_mass;
-//mod measure_composite;
+mod measure_composite;
 
 use measure_length::*;
 use measure_mass::*;
 
-//use measure_composite::*;
+use measure_composite::*;
 
 use core::any::type_name;
 use std::mem::size_of;

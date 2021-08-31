@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "problem-1-duplicate-const-generic",
-    "problem-2-trait-extends",
+    #"problem-1-duplicate-const-generic",
+    #"problem-2-trait-extends",
     "unit-clarification",
     "unit-transform",
     "unit-transform-2",
