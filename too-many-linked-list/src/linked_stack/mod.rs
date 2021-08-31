@@ -1,4 +1,6 @@
-use std::ops::DerefMut;
+//! [2. A Bad Stack](http://rust-unofficial.github.io/too-many-lists/first-final.html)
+//! [3. An Ok Stack](http://rust-unofficial.github.io/too-many-lists/second-final.html)
+//! 附加 peek_back push_back pop_back 此三方法循环或递归找队尾, 效率极低, pop_back 用了 unsafe
 
 #[derive(Debug)]
 struct Node<T> {

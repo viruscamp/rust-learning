@@ -1,3 +1,6 @@
+//! [5. A Bad Safe Deque](http://rust-unofficial.github.io/too-many-lists/fourth-final.html)
+//! 用 Arc<RwLock<_>> 替代 Rc<RefCell<_>>
+
 use std::sync::{Arc, RwLock};
 pub struct List<T> {
     head: Link<T>,

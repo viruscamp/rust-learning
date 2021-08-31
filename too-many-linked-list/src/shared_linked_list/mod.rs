@@ -1,3 +1,6 @@
+//! [4. A Persistent Stack](http://rust-unofficial.github.io/too-many-lists/third-final.html)
+//! 用 Arc 替代 Rc
+
 use std::sync::Arc;
 use std::fmt;
 

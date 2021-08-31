@@ -1,3 +1,6 @@
+//! [2.1. Layout](http://rust-unofficial.github.io/too-many-lists/first-layout.html)
+//! 不好的数据结构
+
 /*
 // 编译不过
 pub enum List {

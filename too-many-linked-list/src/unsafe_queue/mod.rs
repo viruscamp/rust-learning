@@ -1,3 +1,6 @@
+//! [6. An Unsafe Queue](http://rust-unofficial.github.io/too-many-lists/fifth-final.html)
+//! 用 Arc 替代 Rc
+
 use std::ptr::null_mut;
 
 mod iter;
