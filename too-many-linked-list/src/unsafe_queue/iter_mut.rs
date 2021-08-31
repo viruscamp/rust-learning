@@ -17,7 +17,6 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
         /*
         // 闭包一定会 borrow &self.0 跟 node borrow 的冲突了, 不能用 map
-        // 导致运行时错误 (exit code: 0xc0000374, STATUS_HEAP_CORRUPTION)
         self.0.as_deref_mut().map(|node| unsafe {
             let node_ptr: *mut Node<T> = node;
             self.0 = &mut (*node_ptr).next;
