@@ -176,6 +176,18 @@ impl<T> LinkedStack<T> {
     }
 }
 
+/// 反转
+fn reverse<T>(ls: &mut LinkedStack<T>) {
+    let mut oldhead = ls.head.take();
+    let mut head = None;
+    while let Some(mut node) = oldhead.take() {
+        oldhead = node.next;
+        node.next = head.take();
+        head = Some(node);
+    }
+    ls.head = head;
+}
+
 // 独占借用递归 pop
 fn pop_back_recursive<T>(link: &mut Link<T>) -> Option<T> {
     // 这个 match 对应 link.as_mut().and_then(|sub_node| {}) 写不出, 因为里面再次用了 link

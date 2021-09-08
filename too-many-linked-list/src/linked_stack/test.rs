@@ -50,6 +50,23 @@ fn peek() {
 }
 
 #[test]
+fn test_reverse() {
+    let mut list = List::new();
+    reverse(&mut list);
+    assert_eq!(list.iter().collect::<Vec<_>>(), [&0;0]);
+
+    list.push(3);
+    reverse(&mut list);
+    assert_eq!(list.iter().collect::<Vec<_>>(), [&3]);
+
+    list.push(2);
+    list.push(1);
+    assert_eq!(list.iter().collect::<Vec<_>>(), [&1, &2, &3]);
+    reverse(&mut list);
+    assert_eq!(list.iter().collect::<Vec<_>>(), [&3, &2, &1]);
+}
+
+#[test]
 fn into_iter() {
     let mut list = List::new();
     list.push(1); list.push(2); list.push(3);

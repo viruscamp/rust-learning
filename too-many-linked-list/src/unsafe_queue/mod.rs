@@ -1,5 +1,4 @@
 //! [6. An Unsafe Queue](http://rust-unofficial.github.io/too-many-lists/fifth-final.html)
-//! 用 Arc 替代 Rc
 
 use std::ptr::null_mut;
 
@@ -24,7 +23,7 @@ impl<T> List<T> {
         List{ head: None, tail: null_mut() }
     }
     /// pop from head
-    pub fn pop(&mut self) -> Option<T> {
+    pub fn pop_front(&mut self) -> Option<T> {
         self.head.take().map(|old_head| {
             let old_head = *old_head;
             if old_head.next.is_none() {
@@ -34,8 +33,16 @@ impl<T> List<T> {
             old_head.elem
         })
     }
+    pub fn push_front(&mut self, elem: T) {
+        let mut new_node = Box::new(Node { elem, next: self.head.take() });
+        let new_node_ptr: *mut _ = &mut *new_node;
+        self.head = Some(new_node);
+        if self.tail.is_null() {
+            self.tail = new_node_ptr;
+        }
+    }
     /// push to tail
-    pub fn push(&mut self, elem: T) {
+    pub fn push_back(&mut self, elem: T) {
         let mut new_node = Box::new(Node { elem, next: None });
         let tail_ptr: *mut _ = &mut *new_node;
         if self.tail.is_null() {
@@ -58,4 +65,18 @@ impl<T> List<T> {
             &mut node.elem
         })
     }
+}
+
+/// 反转
+fn reverse<T>(ls: &mut List<T>) {
+    let mut oldhead = ls.head.take();
+    let tail = oldhead.as_deref_mut().map_or(null_mut(), |x| x);
+    let mut head = None;
+    while let Some(mut node) = oldhead.take() {
+        oldhead = node.next;
+        node.next = head.take();
+        head = Some(node);
+    }
+    ls.head = head;
+    ls.tail = tail;
 }
