@@ -1,4 +1,4 @@
-#![feature(const_generics)]
+#![feature(adt_const_params)]
 #![feature(associated_type_defaults)]
 #![feature(generic_associated_types)]
 #![feature(const_type_name)]

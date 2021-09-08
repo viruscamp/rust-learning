@@ -1,5 +1,4 @@
-#![feature(const_generics)]
-#![feature(const_evaluatable_checked)]
+#![feature(adt_const_params)]
 #![feature(generic_associated_types)]
 #![feature(associated_type_defaults)]
 #![feature(associated_type_bounds)]
