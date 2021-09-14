@@ -23,30 +23,20 @@ mod iter_mut;
 #[cfg(test)]
 mod test;
 
+// 循环 drop , 不这样做的话, 默认的 Drop 是递归的, 元素多时会爆栈
 impl<T> Drop for LinkedStack<T> {
     default fn drop(&mut self) {
         let mut link = self.head.take();
-        let mut count = 1usize;
-
         while let Some(mut boxed_node) = link {
-            //println!("drop {}th element", count);
-            count += 1;
             link = boxed_node.next.take();
         }
     }
 }
 
-impl<T: std::fmt::Debug> Drop for LinkedStack<T> {
-    fn drop(&mut self) {
-        let mut link = self.head.take();
-        let mut count = 1usize;
-
-        while let Some(mut boxed_node) = link {
-            //println!("drop {}th element: {:?}", count, &boxed_node.elem);
-            count += 1;
-            link = boxed_node.next.take();
-        }
-    }
+// 测试用 强制使用默认的递归 drop
+trait LinkedStackRecursionDrop {}
+impl<T: LinkedStackRecursionDrop> Drop for LinkedStack<T> {
+    fn drop(&mut self) {}
 }
 
 impl<T> LinkedStack<T> {

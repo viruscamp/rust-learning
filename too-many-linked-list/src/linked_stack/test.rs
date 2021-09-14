@@ -30,6 +30,23 @@ fn basics() {
     assert_eq!(list.pop(), None);
 }
 
+#[test]
+fn recursion_drop() {
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct I(i32);
+    impl LinkedStackRecursionDrop for I {}
+    // 强制使用递归 drop 打断点看 call stack 增加
+    impl Drop for I {
+        fn drop(&mut self) {
+            println!("drop {:?}", self);
+        }
+    }
+
+    let mut list = List::new();
+    list.push(I(1));
+    list.push(I(2));
+    list.push(I(3));
+}
 
 #[test]
 fn peek() {
