@@ -32,13 +32,60 @@ fn basics() {
 
 #[test]
 fn recursion_drop() {
+    thread_local!(static SP_DROP: std::cell::RefCell<*mut std::ffi::c_void>  = std::cell::RefCell::new(std::ptr::null_mut()));
+
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     struct I(i32);
     impl LinkedStackRecursionDrop for I {}
     // 强制使用递归 drop 打断点看 call stack 增加
+    // 用 backtrace::trace 拿到 drop 时的 stack pointer , 应该不同, 栈增长, sp递减
     impl Drop for I {
         fn drop(&mut self) {
-            println!("drop {:?}", self);
+            let mut sp = std::ptr::null_mut();
+            extern crate backtrace;
+            backtrace::trace(|frame| {
+                sp = frame.sp();
+                false
+            });
+            SP_DROP.with(|f| {
+                if *f.borrow() != std::ptr::null_mut() {
+                    assert_ne!(*f.borrow(), sp);
+                }
+                *f.borrow_mut() = sp;
+                println!("drop {:?} at {:?}", self, sp);
+            });
+        }
+    }
+
+    let mut list = List::new();
+    list.push(I(1));
+    list.push(I(2));
+    list.push(I(3));
+}
+
+#[test]
+fn non_recursion_drop() {
+    thread_local!(static SP_DROP: std::cell::RefCell<*mut std::ffi::c_void>  = std::cell::RefCell::new(std::ptr::null_mut()));
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct I(i32);
+    // 强制使用非递归 drop 打断点看 call stack 不变
+    // 用 backtrace::trace 拿到 drop 时的 stack pointer , 应该相同
+    impl Drop for I {
+        fn drop(&mut self) {
+            let mut sp = std::ptr::null_mut();
+            extern crate backtrace;
+            backtrace::trace(|frame| {
+                sp = frame.sp();
+                false
+            });
+            SP_DROP.with(|f| {
+                if *f.borrow() != std::ptr::null_mut() {
+                    assert_eq!(*f.borrow(), sp);
+                }
+                *f.borrow_mut() = sp;
+                println!("drop {:?} at {:?}", self, sp);
+            });
         }
     }
 
