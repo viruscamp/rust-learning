@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use super::*;
 
 type List<T> = LinkedStack<T>;
@@ -30,30 +32,66 @@ fn basics() {
     assert_eq!(list.pop(), None);
 }
 
+macro_rules! stack_info {
+    () => ({
+        let mut level = 0;
+        let mut sp = ptr::null_mut();
+        backtrace::trace(|frame| {
+            if sp == ptr::null_mut() {
+                sp = frame.sp();
+            }
+            level += 1;
+            true
+        });
+        (level, sp)
+    })
+}
+
+#[test]
+#[should_panic]
+#[ignore]
+fn recursion_drop_stackoverflow() {
+    struct I(i32);
+    impl LinkedStackRecursionDrop for I {}
+
+    fn test(n: usize) {
+        let mut list = List::new();
+        for i in 0..n {
+            list.push(I(i as i32))
+        }
+        println!("List size={} created ok", n);
+        drop(list);
+        println!("List size={} dropped ok", n);
+    }
+
+    let mut n: usize = 512;
+    loop {
+        test(n);
+        n = n * 2;
+    }
+}
+
 #[test]
 fn recursion_drop() {
-    thread_local!(static SP_DROP: std::cell::RefCell<*mut std::ffi::c_void>  = std::cell::RefCell::new(std::ptr::null_mut()));
+    use std::cell::RefCell;
+    use std::ffi::c_void;
+    use std::ptr;
+
+    thread_local!(static VEC_SP_DROP: RefCell<Vec<(i32, *mut c_void)>> = RefCell::new(Vec::new()));
 
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     struct I(i32);
     impl LinkedStackRecursionDrop for I {}
-    // 强制使用递归 drop 打断点看 call stack 增加
+    // 使用递归 drop 打断点看 call stack 增加
     // 用 backtrace::trace 拿到 drop 时的 stack pointer , 应该不同, 栈增长, sp递减
     impl Drop for I {
         fn drop(&mut self) {
-            let mut sp = std::ptr::null_mut();
-            extern crate backtrace;
-            backtrace::trace(|frame| {
-                sp = frame.sp();
-                false
+            let (level, sp) = stack_info!();
+            VEC_SP_DROP.with(|f| {
+                (*f.borrow_mut()).push((level, sp));
             });
-            SP_DROP.with(|f| {
-                if *f.borrow() != std::ptr::null_mut() {
-                    assert_ne!(*f.borrow(), sp);
-                }
-                *f.borrow_mut() = sp;
-                println!("drop {:?} at {:?}", self, sp);
-            });
+
+            println!("drop {:?} stack_level={} sp={:?}", self, level, sp);
         }
     }
 
@@ -61,11 +99,23 @@ fn recursion_drop() {
     list.push(I(1));
     list.push(I(2));
     list.push(I(3));
+    drop(list);
+
+    VEC_SP_DROP.with(|f| {
+        let vec_sp = &*f.borrow();
+        assert_eq!(vec_sp.len(), 3);
+        assert_ne!(vec_sp[0], vec_sp[1]);
+        assert_ne!(vec_sp[1], vec_sp[2]);
+    });
 }
 
 #[test]
 fn non_recursion_drop() {
-    thread_local!(static SP_DROP: std::cell::RefCell<*mut std::ffi::c_void>  = std::cell::RefCell::new(std::ptr::null_mut()));
+    use std::cell::RefCell;
+    use std::ffi::c_void;
+    use std::ptr;
+
+    thread_local!(static VEC_SP_DROP: RefCell<Vec<(i32, *mut c_void)>> = RefCell::new(Vec::new()));
 
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     struct I(i32);
@@ -73,19 +123,11 @@ fn non_recursion_drop() {
     // 用 backtrace::trace 拿到 drop 时的 stack pointer , 应该相同
     impl Drop for I {
         fn drop(&mut self) {
-            let mut sp = std::ptr::null_mut();
-            extern crate backtrace;
-            backtrace::trace(|frame| {
-                sp = frame.sp();
-                false
+            let (level, sp) = stack_info!();
+            VEC_SP_DROP.with(|f| {
+                (*f.borrow_mut()).push((level, sp));
             });
-            SP_DROP.with(|f| {
-                if *f.borrow() != std::ptr::null_mut() {
-                    assert_eq!(*f.borrow(), sp);
-                }
-                *f.borrow_mut() = sp;
-                println!("drop {:?} at {:?}", self, sp);
-            });
+            println!("drop {:?} stack_level={} sp={:?}", self, level, sp);
         }
     }
 
@@ -93,6 +135,14 @@ fn non_recursion_drop() {
     list.push(I(1));
     list.push(I(2));
     list.push(I(3));
+    drop(list);
+
+    VEC_SP_DROP.with(|f| {
+        let vec_sp = &*f.borrow();
+        assert_eq!(vec_sp.len(), 3);
+        assert_eq!(vec_sp[0], vec_sp[1]);
+        assert_eq!(vec_sp[1], vec_sp[2]);
+    });
 }
 
 #[test]

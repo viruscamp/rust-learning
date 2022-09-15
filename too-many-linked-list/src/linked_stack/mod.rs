@@ -34,7 +34,7 @@ impl<T> Drop for LinkedStack<T> {
 }
 
 // 测试用 强制使用默认的递归 drop
-trait LinkedStackRecursionDrop {}
+pub trait LinkedStackRecursionDrop {}
 impl<T: LinkedStackRecursionDrop> Drop for LinkedStack<T> {
     fn drop(&mut self) {}
 }
