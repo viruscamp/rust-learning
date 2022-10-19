@@ -1,13 +1,13 @@
 //! [2.1. Layout](http://rust-unofficial.github.io/too-many-lists/first-layout.html)
 //! 不好的数据结构
 
-/*
-// 编译不过
-pub enum List {
-    Empty,
-    Elem(i32, List),
-}
-*/
+/// ```compile_fail
+/// // 编译不过
+/// pub enum List {
+///     Empty,
+///     Elem(i32, List),
+/// }
+/// ```
 
 /// 1. 最后一个 node 无用
 /// 2. 第一个 node 在栈上
