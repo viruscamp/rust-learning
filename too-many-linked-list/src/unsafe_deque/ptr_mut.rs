@@ -1,39 +1,30 @@
-//! [7. A Production Unsafe Deque](https://rust-unofficial.github.io/too-many-lists/sixth-final.html)
+use std::ptr::null_mut;
 
-mod variance;
-mod ptr_mut;
-mod nll_test;
-
-use core::ptr;
-use std::ptr::{NonNull, addr_of_mut};
-use std::marker::PhantomData;
-
-#[derive(Debug)]
 pub struct LinkedList<T> {
     front: Link<T>,
     back: Link<T>,
     len: usize,
-     /// We semantically store values of T by-value.
-    _boo: PhantomData<T>,
+    // 这里可以不用 PhantomData, 
+    //_boo: PhantomData<T>,
 }
 
-/// 对`Node<T>`协变, 因为 `NonNull<X>` 内部是 ``*const X``, 对`X`协变
-type Link<T> = Option<NonNull<Node<T>>>;
+/// 不用 Option<NonNull<Node<T>>>; 那么就不是协变,  看看后果
+/// `Link<T>`对`Node<T>`不变, 因为`*mut X`对`X`不变
+type Link<T> = *mut Node<T>;
 
-#[derive(Debug, Copy, Clone)]
+/// `Node<T>`对`T`协变
 struct Node<T> {
     front: Link<T>,
     back: Link<T>,
-    elem: T,
+    elem: T, 
 }
 
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
         Self {
-            front: None,
-            back: None,
+            front: null_mut(),
+            back: null_mut(),
             len: 0,
-            _boo: PhantomData,
         }
     }
 
@@ -44,25 +35,26 @@ impl<T> LinkedList<T> {
     pub fn push_front(&mut self, elem: T) {
         // SAFETY: it's a linked-list, what do you want?
         unsafe {
-            let new = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
-                front: None,
-                back: None,
+            let new = Box::into_raw(Box::new(Node {
+                front: null_mut(),
+                back: null_mut(),
                 elem,
-            })));
-            if let Some(old) = self.front {
+            }));
+            if !self.front.is_null() {
+                let old = self.front;
                 // Put the new front before the old one
-                (*old.as_ptr()).front = Some(new);
-                (*new.as_ptr()).back = Some(old);
+                (*old).front = new;
+                (*new).back = old;
             } else {
                 // If there's no front, then we're the empty list and need 
                 // to set the back too. Also here's some integrity checks
                 // for testing, in case we mess up.
-                debug_assert!(self.back.is_none());
-                debug_assert!(self.front.is_none());
+                debug_assert!(self.back.is_null());
+                debug_assert!(self.front.is_null());
                 debug_assert!(self.len == 0);
-                self.back = Some(new);
+                self.back = new;
             }
-            self.front = Some(new);
+            self.front = new;
             self.len += 1;
         }
     }
@@ -73,39 +65,36 @@ impl<T> LinkedList<T> {
             // Note that we don't need to mess around with `take` anymore
             // because everything is Copy and there are no dtors that will
             // run if we mess up... right? :) Riiiight? :)))
-            self.front.map(|node| {
+            if self.front.is_null() {
+                None
+            } else {
                 // Bring the Box back to life so we can move out its value and
                 // Drop it (Box continues to magically understand this for us).
-                let boxed_node = Box::from_raw(node.as_ptr());
+                let boxed_node = Box::from_raw(self.front);
                 let result = boxed_node.elem;
     
                 // Make the next node into the new front.
                 self.front = boxed_node.back;
-                if let Some(new) = self.front {
+                if !self.front.is_null() {
                     // Cleanup its reference to the removed node
-                    (*new.as_ptr()).front = None;
+                    (*self.front).front = null_mut();
                 } else {
                     // If the front is now null, then this list is now empty!
                     debug_assert!(self.len == 1);
-                    self.back = None;
+                    self.back = null_mut();
                 }
     
                 self.len -= 1;
-                result
+                Some(result)
                 // Box gets implicitly freed here, knows there is no T.
-            })
+            }
         }
-    }
-}
-
-impl<T> Drop for LinkedList<T> {
-    fn drop(&mut self) {
-        while let Some(_) = self.pop_front() {}
     }
 }
 
 #[cfg(doctest)]
 /// ```compile_fail
+/// use too_many_linked_list::unsafe_deque::LinkedList;
 /// '_long: {
 ///     let a = 3;
 ///     let mut l = LinkedList::new();

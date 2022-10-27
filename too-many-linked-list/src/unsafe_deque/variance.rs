@@ -1,21 +1,4 @@
 //! [7.2. Variance and PhantomData](https://rust-unofficial.github.io/too-many-lists/sixth-variance.html)
-use std::cell::Cell;
-
-/// Incorrect
-pub struct LinkedList<T> {
-    front: Link<T>,
-    back: Link<T>,
-    len: usize,
-}
-
-/// 对 T 这是不变的
-type Link<T> = *mut Node<T>;
-
-struct Node<T> {
-    front: Link<T>,
-    back: Link<T>,
-    elem: T, 
-}
 
 /// for type `F<T>`
 /// 1. 协变 F is covariant if F<Sub> is a subtype of F<Super> (subtyping "passes through")

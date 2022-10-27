@@ -1,4 +1,4 @@
-use std::ptr::{self, null};
+use std::ptr;
 
 use super::*;
 
