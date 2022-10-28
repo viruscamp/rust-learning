@@ -1,3 +1,7 @@
+#[doc = include_str!("../../../nll_test.md")]
+#[cfg(doctest)]
+fn nll_test_extern_doc() {}
+
 /// NLL 导致的非直觉的作用域扩大
 
 #[cfg(doctest)]

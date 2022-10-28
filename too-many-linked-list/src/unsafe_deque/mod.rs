@@ -4,8 +4,7 @@ mod variance;
 mod ptr_mut;
 mod nll_test;
 
-use core::ptr;
-use std::ptr::{NonNull, addr_of_mut};
+use std::ptr::NonNull;
 use std::marker::PhantomData;
 
 #[derive(Debug)]

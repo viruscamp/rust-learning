@@ -1,4 +1,23 @@
-# 泛型参数可变性
+# 泛型型变
+
+## 概要
+`Variance`译作`型变`或`可变性`或`变体`.  
+
+假设1 `C<T>`是一个泛型类或接口, `T`是类型参数.  
+假设2 类型`Dog`是`Animal`的子类型.  
+
+`Covariance`译作`协变`: 如果`C<Dog>`是`C<Animal>`的子类型, 那么`C<T>`对于`T`协变.  
+`Contravariance`译作`逆变`: 如果`C<Animal>`是`C<Dog>`的子类型, 那么`C<T>`对于`T`逆变.  
+`Invariance`译作`不变`: `C<T>`对于`T`既不是协变也不是逆变, 那么`C<T>`对于`T`不变, 或译作抗变.  
+
+## 详解
+
+如果以下代码合法, 那么`Dog`是`Animal`的子类型:
+```java
+void f1(Dog d) {
+    Animal a = d;
+}
+```
 
 定义示例类型继承树: 
 ```java
@@ -7,9 +26,11 @@ class Cat extends Animal {}
 class Dog extends Animal {}
 class CorgiDog extends Dog {}
 ```
-那么`Dog`是`Animal`的子类型, 或者说实际类型`Dog`可以替换类型`Animal`.
 
 `C<T>`是一个泛型类或接口.
+```java
+class C<T> {}
+```
 
 1. Covariance 协变  
   如果某个泛型参数类型可以由其子类型替换, 那么此泛型类支持协变的.  
@@ -69,12 +90,12 @@ addDog(new ArrayList<Dog>()); // 编译错误 因为`List<Animal>`不支持逆�
 void addDog(List<? super Dog> al) {
     al.add(new Dog());
 }
-addDog(new ArrayList<Dog>()); // OK 逆变
-addDog(new ArrayList<Animal>()); // OK
+addDog(new ArrayList<Dog>()); // OK
+addDog(new ArrayList<Animal>()); // OK 逆变
 ```
 
-3. Invariance 抗变  
-如果`C<Animal>`与`C<Dog>`不能互相替换, 那么`C<T>`对于`T`抗变, 或称不变.
+3. Invariance 不变  
+如果`C<Animal>`与`C<Dog>`不能互相替换, 那么`C<T>`对于`T`不变, 或译作抗变.
 ```java
 void useList(List<Dog> cl) {
     Dog d = cl.get(0); // List<Animal> 不能用
@@ -130,39 +151,3 @@ CorgiDog func2(Animal a) {
 use(func1);
 use(func2);
 ```
-
-5. Rust  
-Rust 没有 struct 继承, trait 继承不能用于类型转换.
-Rust 的子类型关系只出现在生存期上.
-```rust
-fn lifetime<'big: 'small, 'small>(a: &'small i32, b: &'big i32) {}
-```
-意味着 `'big`是一个较长的生存期, 它能完全覆盖`'small`这个较短的生存期,
-那么需要一个`&'small i32`的地方`&'big i32`是能够满足的,
-所以`&'big i32`是`&'small i32`的子类型.
-
-静态生存期`&'static T`是任意生存期`&'x T`的子类型.
-
-Rust 泛型类型的可变性不是由语法定义,而是固定的几个基础类型的可变性表,
-然后组合类型 `struct` `enum` 和 `union` 根据其包含域类型的可变性确定, 
-域类型有多种可变性时, 组合类型为不变.
-
-`Cell<T>` 包含 `std::cell::UnsafeCell<T>` 其对`T`不变.  
-`Vec<T>` 包含 `alloc::raw_vec::RawVec<T>` 包含 `core::ptr::Unique<T>` 包含 `std::marker::PhantomData<T>` 其对`T`协变.  
-
-| Type                          | Variance in `'a`  | Variance in `T`   |
-|-------------------------------|-------------------|-------------------|
-| `&'a T`                       | covariant         | covariant         |
-| `&'a mut T`                   | covariant         | invariant         |
-| `*const T`                    |                   | covariant         |
-| `*mut T`                      |                   | invariant         |
-| `[T]` and `[T; n]`            |                   | covariant         |
-| `fn() -> T`                   |                   | covariant         |
-| `fn(T) -> ()`                 |                   | contravariant     |
-| `std::cell::UnsafeCell<T>`    |                   | invariant         |
-| `std::marker::PhantomData<T>` |                   | covariant         |
-| `dyn Trait<T> + 'a`           | covariant         | invariant         |
-
-
-type Link1<T> = Option<NonNull<Node<T>>>; // `NonNull` is `*const T` covariant for `Node<T>`
-type Link2<T> = *mut Node<T>; // invariant for `Node<T>`
