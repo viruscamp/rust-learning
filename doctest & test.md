@@ -87,6 +87,7 @@ struct ReadmeDoctests; // 仅在 doctest 有效的代码
 mod doc_test {}
 ```
 
+# 运行与结果
 ## 测试常用命令
 ```shell
 # 运行所有测试 包括 doctest
@@ -101,7 +102,7 @@ cargo test bad_safe_deque::test::test_push
 # 仅运行名称包括参数的 doctest
 cargo test --doc SelfContainedList
 ```
-测试名称可在 `cargo test` 得到. 命名规则见下一部分.
+测试名称可由 `cargo test` 得到. 命名规则见下一部分.
 
 ## 测试结果与测试命名
 单元测试`#[test]`命名如下, 不含 crate name 的函数全名, `bad_safe_deque::test::peek`
@@ -113,8 +114,9 @@ test bad_safe_deque::test::into_iter ... ok
 ```
 
 文档测试 doctest 命名如下, 文档对应元素的不含 crate name 的全名, 附加行号  
-同一元素文档有多个文档测试的, 只能靠行号区分
-同一类型的不同 impl 内的同名函数，也只能靠行号区分
+同一元素文档有多个文档测试的, 只能靠行号区分  
+同一类型的不同 impl 内的同名函数，也只能靠行号区分  
+`#[doc = include_str!("readme.md")]`引入的 doctest 显示`readme.md`的行号, 可能导致不同测试有相同的行号  
 ```
 test src\linked_stack\mod.rs - linked_stack::LinkedStack<T>::peek_back (line 104) ... ok
 test src\linked_stack\mod.rs - linked_stack::LinkedStack<T>::peek (line 55) ... ok
