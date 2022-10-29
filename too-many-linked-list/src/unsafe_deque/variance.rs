@@ -1,7 +1,5 @@
 //! [7.2. Variance and PhantomData](https://rust-unofficial.github.io/too-many-lists/sixth-variance.html)
 
-use std::marker::PhantomData;
-
 /// for type `F<T>`
 /// 1. 协变 F is covariant if F<Sub> is a subtype of F<Super> (subtyping "passes through")
 /// 2. 逆变 F is contravariant if F<Super> is a subtype of F<Sub> (subtyping is "inverted")

@@ -12,11 +12,19 @@ pub struct LinkedList<T> {
     front: Link<T>,
     back: Link<T>,
     len: usize,
-     /// We semantically store values of T by-value.
+    // We semantically store values of T by-value. 非必要
     _boo: PhantomData<T>,
 }
 
 /// 对`Node<T>`协变, 因为 `NonNull<X>` 内部是 ``*const X``, 对`X`协变
+/// 如下函数编译成功证明了 `LinkedList<T>` 对 `T` 协变
+/// ```no_run
+/// # use too_many_linked_list::unsafe_deque::LinkedList;
+/// fn ensure_covariant<'long: 'short, 'short>(list_long: LinkedList<&'long i32>, mut list_short: LinkedList<&'short i32>) {
+///     let list_short_new: LinkedList<&'short i32> = list_long; // 证明协变
+///     //let list_long_new: LinkedList<&'long i32> = list_short; // 证明逆变
+/// }
+/// ```
 type Link<T> = Option<NonNull<Node<T>>>;
 
 #[derive(Debug, Copy, Clone)]
@@ -160,20 +168,5 @@ mod test {
         assert_eq!(list.len(), 0);
         assert_eq!(list.pop_front(), None);
         assert_eq!(list.len(), 0);
-    }
-
-    #[test]
-    fn lifetime_covariant() {
-        '_long: {
-            let a = 3;
-            '_short: {
-                let b = 4;
-                let mut l = LinkedList::new();
-                l.push_front(&b); // make sure `l` is `LinkedList<&'_short i32>`
-
-                l.push_front(&a); // push `a` `&'_long i32` to `LinkedList<&'_short i32>`
-            }
-            let _z = a; // force extend the lifetime of `a`
-        }
     }
 }

@@ -1,4 +1,4 @@
-use std::ptr::null_mut;
+use std::{ptr::null_mut, marker::PhantomData};
 
 pub struct LinkedList<T> {
     front: Link<T>,
@@ -10,6 +10,17 @@ pub struct LinkedList<T> {
 
 /// 不用 Option<NonNull<Node<T>>>; 那么就不是协变,  看看后果
 /// `Link<T>`对`Node<T>`不变, 因为`*mut X`对`X`不变
+/// 如下函数编译失败, 证明了 `LinkedList<T>` 对 `T` 并非协变, 不能满足需求
+/// ```compile_fail
+/// # use too_many_linked_list::unsafe_deque::ptr_mut::LinkedList;
+/// fn ensure_covariant<'long: 'short, 'short>(list_long: LinkedList<&'long i32>, mut list_short: LinkedList<&'short i32>) {
+///     let list_short_new: LinkedList<&'short i32> = list_long; // 证明协变
+///     //let list_long_new: LinkedList<&'long i32> = list_short; // 证明逆变
+/// }
+/// ```
+/// 相关编译错误:
+///    = note: requirement occurs because of the type `ptr_mut::LinkedList<&i32>`, which makes the generic argument `&i32` invariant
+///    = note: the struct `ptr_mut::LinkedList<T>` is invariant over the parameter `T`
 type Link<T> = *mut Node<T>;
 
 /// `Node<T>`对`T`协变
@@ -25,6 +36,7 @@ impl<T> LinkedList<T> {
             front: null_mut(),
             back: null_mut(),
             len: 0,
+            //_boo: PhantomData,
         }
     }
 
@@ -92,22 +104,6 @@ impl<T> LinkedList<T> {
     }
 }
 
-#[cfg(doctest)]
-/// ```compile_fail
-/// use too_many_linked_list::unsafe_deque::LinkedList;
-/// '_long: {
-///     let a = 3;
-///     let mut l = LinkedList::new();
-///     l.push_front(&a); // make sure l is `LinkedList<&'_long i32>`
-///     '_short: {
-///         let b = 4;
-///         l.push_front(&b); // push a `&'_short i32` to `LinkedList<&'_long i32>`
-///     }
-///     let l = l; // force extend the lifetime of `l`
-/// }
-/// ```
-fn lifetime_contravariant() {}
-
 #[cfg(test)]
 mod test {
     use super::LinkedList;
@@ -150,20 +146,5 @@ mod test {
         assert_eq!(list.len(), 0);
         assert_eq!(list.pop_front(), None);
         assert_eq!(list.len(), 0);
-    }
-
-    #[test]
-    fn lifetime_covariant() {
-        '_long: {
-            let a = 3;
-            '_short: {
-                let b = 4;
-                let mut l = LinkedList::new();
-                l.push_front(&b); // make sure `l` is `LinkedList<&'_short i32>`
-
-                l.push_front(&a); // push `a` `&'_long i32` to `LinkedList<&'_short i32>`
-            }
-            let _z = a; // force extend the lifetime of `a`
-        }
     }
 }
