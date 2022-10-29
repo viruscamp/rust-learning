@@ -1,5 +1,7 @@
 //! [7.2. Variance and PhantomData](https://rust-unofficial.github.io/too-many-lists/sixth-variance.html)
 
+use std::marker::PhantomData;
+
 /// for type `F<T>`
 /// 1. 协变 F is covariant if F<Sub> is a subtype of F<Super> (subtyping "passes through")
 /// 2. 逆变 F is contravariant if F<Super> is a subtype of F<Sub> (subtyping is "inverted")
@@ -12,7 +14,7 @@
 /// Cell<T> 包含 std::cell::UnsafeCell<T> 其为不变
 
 /// 1. 生存期 'big 包括 'small , `&'big u32` 是 `&'small u32` 的子类型
-/// ```
+/// ```no_run
 /// fn take_two<T>(_val1: T, _val2: T) { }
 /// fn two_refs_u32<'big: 'small, 'small>(
 ///     big: &'big u32, 
@@ -23,7 +25,7 @@
 /// }
 /// ```
 /// 2. failed
-/// ```compile_fail
+/// ```no_run,compile_fail
 /// use std::cell::Cell;
 /// fn take_two<T>(_val1: T, _val2: T) { }
 /// fn two_refs_cell<'big: 'small, 'small>(
@@ -37,7 +39,7 @@
 /// }
 /// ```
 /// 3. passed
-/// ```
+/// ```no_run
 /// fn take_two<T>(_val1: T, _val2: T) { }
 /// fn two_refs_vec<'big: 'small, 'small>(
 ///     big: Vec<&'big u32>, 
@@ -50,3 +52,7 @@
 /// ```
 #[cfg(doctest)]
 fn take_two<T>(_val1: T, _val2: T) {}
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../variance-rust.md")]
+fn variance_rust_extern_doc() {}
