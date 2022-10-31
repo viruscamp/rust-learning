@@ -4,10 +4,28 @@ mod variance;
 mod ptr_mut;
 mod nll_test;
 
-use std::ptr::NonNull;
-use std::marker::PhantomData;
+mod iter;
+mod iter_mut;
+mod into_iter;
+mod cursor;
 
-#[derive(Debug)]
+#[cfg(test)]
+mod test;
+
+pub use self::iter::Iter;
+pub use self::iter_mut::IterMut;
+pub use self::into_iter::IntoIter;
+pub use self::cursor::CursorMut;
+
+use core::fmt::Debug;
+use core::cmp::Ordering;
+use core::hash::Hash;
+use core::hash::Hasher;
+use core::iter::FromIterator;
+
+use core::ptr::NonNull;
+use core::marker::PhantomData;
+
 pub struct LinkedList<T> {
     front: Link<T>,
     back: Link<T>,
@@ -44,10 +62,6 @@ impl<T> LinkedList<T> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
     pub fn push_front(&mut self, elem: T) {
         // SAFETY: it's a linked-list, what do you want?
         unsafe {
@@ -61,15 +75,35 @@ impl<T> LinkedList<T> {
                 (*old.as_ptr()).front = Some(new);
                 (*new.as_ptr()).back = Some(old);
             } else {
-                // If there's no front, then we're the empty list and need 
-                // to set the back too. Also here's some integrity checks
-                // for testing, in case we mess up.
-                debug_assert!(self.back.is_none());
-                debug_assert!(self.front.is_none());
-                debug_assert!(self.len == 0);
+                // If there's no front, then we're the empty list and need
+                // to set the back too.
                 self.back = Some(new);
             }
+            // These things always happen!
             self.front = Some(new);
+            self.len += 1;
+        }
+    }
+
+    pub fn push_back(&mut self, elem: T) {
+        // SAFETY: it's a linked-list, what do you want?
+        unsafe {
+            let new = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
+                back: None,
+                front: None,
+                elem,
+            })));
+            if let Some(old) = self.back {
+                // Put the new back before the old one
+                (*old.as_ptr()).back = Some(new);
+                (*new.as_ptr()).front = Some(old);
+            } else {
+                // If there's no back, then we're the empty list and need
+                // to set the front too.
+                self.front = Some(new);
+            }
+            // These things always happen!
+            self.back = Some(new);
             self.len += 1;
         }
     }
@@ -77,15 +111,12 @@ impl<T> LinkedList<T> {
     pub fn pop_front(&mut self) -> Option<T> {
         unsafe {
             // Only have to do stuff if there is a front node to pop.
-            // Note that we don't need to mess around with `take` anymore
-            // because everything is Copy and there are no dtors that will
-            // run if we mess up... right? :) Riiiight? :)))
             self.front.map(|node| {
                 // Bring the Box back to life so we can move out its value and
                 // Drop it (Box continues to magically understand this for us).
                 let boxed_node = Box::from_raw(node.as_ptr());
                 let result = boxed_node.elem;
-    
+
                 // Make the next node into the new front.
                 self.front = boxed_node.back;
                 if let Some(new) = self.front {
@@ -93,23 +124,160 @@ impl<T> LinkedList<T> {
                     (*new.as_ptr()).front = None;
                 } else {
                     // If the front is now null, then this list is now empty!
-                    debug_assert!(self.len == 1);
                     self.back = None;
                 }
-    
+
                 self.len -= 1;
                 result
                 // Box gets implicitly freed here, knows there is no T.
             })
         }
     }
+
+    pub fn pop_back(&mut self) -> Option<T> {
+        unsafe {
+            // Only have to do stuff if there is a back node to pop.
+            self.back.map(|node| {
+                // Bring the Box front to life so we can move out its value and
+                // Drop it (Box continues to magically understand this for us).
+                let boxed_node = Box::from_raw(node.as_ptr());
+                let result = boxed_node.elem;
+
+                // Make the next node into the new back.
+                self.back = boxed_node.front;
+                if let Some(new) = self.back {
+                    // Cleanup its reference to the removed node
+                    (*new.as_ptr()).back = None;
+                } else {
+                    // If the back is now null, then this list is now empty!
+                    self.front = None;
+                }
+
+                self.len -= 1;
+                result
+                // Box gets implicitly freed here, knows there is no T.
+            })
+        }
+    }
+
+    pub fn front(&self) -> Option<&T> {
+        unsafe { self.front.map(|node| &(*node.as_ptr()).elem) }
+    }
+
+    pub fn front_mut(&mut self) -> Option<&mut T> {
+        unsafe { self.front.map(|node| &mut (*node.as_ptr()).elem) }
+    }
+
+    pub fn back(&self) -> Option<&T> {
+        unsafe { self.back.map(|node| &(*node.as_ptr()).elem) }
+    }
+
+    pub fn back_mut(&mut self) -> Option<&mut T> {
+        unsafe { self.back.map(|node| &mut (*node.as_ptr()).elem) }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn clear(&mut self) {
+        // Oh look it's drop again
+        while self.pop_front().is_some() {}
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        self.into()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        self.into()
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<T> {
+        self.into()
+    }
 }
 
 impl<T> Drop for LinkedList<T> {
     fn drop(&mut self) {
-        while let Some(_) = self.pop_front() {}
+        // Pop until we have to stop
+        while self.pop_front().is_some() {}
     }
 }
+
+impl<T> Default for LinkedList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Clone> Clone for LinkedList<T> {
+    fn clone(&self) -> Self {
+        let mut new_list = Self::new();
+        for item in self {
+            new_list.push_back(item.clone());
+        }
+        new_list
+    }
+}
+
+impl<T> Extend<T> for LinkedList<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push_back(item);
+        }
+    }
+}
+
+impl<T> FromIterator<T> for LinkedList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut list = Self::new();
+        list.extend(iter);
+        list
+    }
+}
+
+impl<T: Debug> Debug for LinkedList<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_list().entries(self).finish()
+    }
+}
+
+impl<T: PartialEq> PartialEq for LinkedList<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && self.iter().eq(other)
+    }
+}
+
+impl<T: Eq> Eq for LinkedList<T> {}
+
+impl<T: PartialOrd> PartialOrd for LinkedList<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.iter().partial_cmp(other)
+    }
+}
+
+impl<T: Ord> Ord for LinkedList<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.iter().cmp(other)
+    }
+}
+
+impl<T: Hash> Hash for LinkedList<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
+        for item in self {
+            item.hash(state);
+        }
+    }
+}
+
+unsafe impl<T: Send> Send for LinkedList<T> {}
+unsafe impl<T: Sync> Sync for LinkedList<T> {}
 
 #[cfg(doctest)]
 /// ```compile_fail
@@ -124,49 +292,4 @@ impl<T> Drop for LinkedList<T> {
 ///     let l = l; // force extend the lifetime of `l`
 /// }
 /// ```
-fn lifetime_contravariant() {}
-
-#[cfg(test)]
-mod test {
-    use super::LinkedList;
-
-    #[test]
-    fn test_basic_front() {
-        let mut list = LinkedList::new();
-
-        // Try to break an empty list
-        assert_eq!(list.len(), 0);
-        assert_eq!(list.pop_front(), None);
-        assert_eq!(list.len(), 0);
-
-        // Try to break a one item list
-        list.push_front(10);
-        assert_eq!(list.len(), 1);
-        assert_eq!(list.pop_front(), Some(10));
-        assert_eq!(list.len(), 0);
-        assert_eq!(list.pop_front(), None);
-        assert_eq!(list.len(), 0);
-
-        // Mess around
-        list.push_front(10);
-        assert_eq!(list.len(), 1);
-        list.push_front(20);
-        assert_eq!(list.len(), 2);
-        list.push_front(30);
-        assert_eq!(list.len(), 3);
-        assert_eq!(list.pop_front(), Some(30));
-        assert_eq!(list.len(), 2);
-        list.push_front(40);
-        assert_eq!(list.len(), 3);
-        assert_eq!(list.pop_front(), Some(40));
-        assert_eq!(list.len(), 2);
-        assert_eq!(list.pop_front(), Some(20));
-        assert_eq!(list.len(), 1);
-        assert_eq!(list.pop_front(), Some(10));
-        assert_eq!(list.len(), 0);
-        assert_eq!(list.pop_front(), None);
-        assert_eq!(list.len(), 0);
-        assert_eq!(list.pop_front(), None);
-        assert_eq!(list.len(), 0);
-    }
-}
+fn lifetime_extend() {}
