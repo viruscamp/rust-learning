@@ -11,6 +11,14 @@ struct Node<T> {
 
 type Link<T> = Option<Box<Node<T>>>;
 
+/// 如下函数编译成功证明了 `LinkedStack<T>` 对 `T` 协变
+/// ```no_run
+/// # use too_many_linked_list::linked_stack::LinkedStack;
+/// fn ensure_covariant<'long: 'short, 'short>(list_long: LinkedStack<&'long i32>, mut list_short: LinkedStack<&'short i32>) {
+///     let list_short_new: LinkedStack<&'short i32> = list_long; // 证明协变
+///     //let list_long_new: LinkedStack<&'long i32> = list_short; // 证明逆变
+/// }
+/// ```
 pub struct LinkedStack<T> {
     head: Link<T>,
     //tail

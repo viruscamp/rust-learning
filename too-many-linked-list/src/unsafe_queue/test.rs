@@ -4,13 +4,17 @@ use super::*;
 
 fn valid<T>(list: &List<T>) {
     match list.head.as_ref() {
-        None => assert_eq!(list.tail, ptr::null_mut()),
+        None => assert_eq!(list.tail, None),
         Some(mut node) => {
             while let Some(next_node) = node.next.as_ref() {
                 node = next_node;
             }
-            let node_ptr: *const Node<T> = &**node;
-            assert_eq!(list.tail as *const _, node_ptr);
+            match list.tail {
+                None => panic!("list.tail is none but there are values"),
+                Some(ref ptr) => {
+                    assert_eq!(ptr.as_ptr() as *const _ , node.as_ref() as *const _);
+                }
+            }
         },
     }
 }

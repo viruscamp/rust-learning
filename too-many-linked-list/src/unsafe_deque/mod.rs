@@ -205,7 +205,8 @@ impl<T> LinkedList<T> {
 impl<T> Drop for LinkedList<T> {
     fn drop(&mut self) {
         // Pop until we have to stop
-        while self.pop_front().is_some() {}
+        //while self.pop_front().is_some() {}
+        while let Some(_) = self.pop_front() {}
     }
 }
 
