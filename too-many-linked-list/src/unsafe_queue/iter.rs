@@ -1,6 +1,7 @@
 use super::*;
 
 // 始终有一个借用到 LinkedStack 内部, 阻止其 drop
+// 对 `T` 协变
 pub struct Iter<'a, T>(&'a Link<T>);
 
 impl<'a, T> Iterator for Iter<'a, T> {

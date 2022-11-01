@@ -279,18 +279,3 @@ impl<T: Hash> Hash for LinkedList<T> {
 
 unsafe impl<T: Send> Send for LinkedList<T> {}
 unsafe impl<T: Sync> Sync for LinkedList<T> {}
-
-#[cfg(doctest)]
-/// ```compile_fail
-/// '_long: {
-///     let a = 3;
-///     let mut l = LinkedList::new();
-///     l.push_front(&a); // make sure l is `LinkedList<&'_long i32>`
-///     '_short: {
-///         let b = 4;
-///         l.push_front(&b); // push a `&'_short i32` to `LinkedList<&'_long i32>`
-///     }
-///     let l = l; // force extend the lifetime of `l`
-/// }
-/// ```
-fn lifetime_extend() {}

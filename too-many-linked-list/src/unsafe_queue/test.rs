@@ -9,12 +9,7 @@ fn valid<T>(list: &List<T>) {
             while let Some(next_node) = node.next.as_ref() {
                 node = next_node;
             }
-            match list.tail {
-                None => panic!("list.tail is none but there are values"),
-                Some(ref ptr) => {
-                    assert_eq!(ptr.as_ptr() as *const _ , node.as_ref() as *const _);
-                }
-            }
+            assert_eq!(list.tail.map(|ptr| ptr.as_ptr() as *const _), Some(node.as_ref() as *const _));
         },
     }
 }
