@@ -2,6 +2,7 @@
 //! 不好的数据结构
 
 #[cfg(doctest)]
+/// 自包含结构
 /// ```compile_fail
 /// // 编译不过
 /// pub enum List {
@@ -29,6 +30,7 @@ pub enum BadList2<T> {
     ElemThenNotEmpty(T, Box<BadList2<T>>),
 }
 
+/// 抽象泄漏 内部类型 `Node3<T>` 也必须是 pub 的
 /// 导出 List3 隐藏 Node3 时有编译错误
 /// private type `Node3<T>` in public interface. can't leak private type
 #[derive(Debug)]

@@ -145,10 +145,46 @@ mod test_variance {
         fn animal_to_corgi<A: Animal>(a: A) -> CorgiDog {
             CorgiDog
         }
+
+        fn blue_cat_to_corgi(c: BlueCat) -> CorgiDog {
+            CorgiDog
+        }
         
         let cd = CatDog(BlueCat, CorgiDog);
         cd.use_fn(cat_to_dog);
         cd.use_fn(animal_to_corgi);  // 同时协变 逆变
+        cd.use_fn(blue_cat_to_corgi); // 这个算什么?
+    }
+
+    #[test]
+    #[ignore]
+    fn trait_fn_contravariant_covariant_2() {
+        fn cat_to_dog<C: Cat, D: Dog>(a: C) -> D {
+            unimplemented!()
+        }
+        
+        fn animal_to_corgi<A: Animal>(a: A) -> CorgiDog {
+            CorgiDog
+        }
+
+        fn white_cat_to_black_dog(c: WhiteCat) -> BlackDog {
+            BlackDog
+        }
+        
+        struct BlackDog;
+        impl Animal for BlackDog {}
+        impl Dog for BlackDog {}
+
+        struct WhiteCat;
+        impl Animal for WhiteCat {}
+        impl Cat for WhiteCat {}
+
+        fn use_fn<C: Cat, D: Dog, F: Fn(C) -> D>(f: F) {
+        }
+
+        use_fn(cat_to_dog::<WhiteCat, BlackDog>);
+        use_fn(animal_to_corgi::<BlueCat>);  // 同时协变 逆变
+        use_fn(white_cat_to_black_dog); // 这个算什么?
     }
 
     #[test]
@@ -195,5 +231,30 @@ mod test_variance {
         s.use_fn(use_static); // 当然可以用 `Fn(&'static str) -> ()` 做参数
         s.use_fn(use_lifetime); // 指定生存期参数的函数 `Fn(&'a str) -> ()` 也可以, 已知 `'static: 'a`, 这就是逆变
         s.use_fn(closure_t); // `Fn(&'t str) -> ()` 也可以, 当然有 `'static: 't`, 这也是逆变
+    }
+
+    #[test]
+    #[ignore]
+    fn lifetime_fn_covariant() {
+        let str1 = String::from("xyz");
+        lifetime_fn_covariant_impl(str1.as_str());
+    }
+
+    fn lifetime_fn_covariant_impl<'t>(argt: &'t str) {
+        struct S<'z>(&'z str);
+        impl<'z> S<'z> {
+            fn use_fn<F: Fn() -> &'z str>(&self, f: F) {
+                f();
+            }
+        }
+
+        let t: S = S(argt); // S<'t>
+        {
+            let str_small = String::from("abc");
+            let closure_small = || { str_small.as_str() };
+            t.use_fn(closure_small); // 函数返回值协变
+        }
+        let closure_t = || { argt };
+        t.use_fn(closure_t); // 类型签名与参数类型相同
     }
 }

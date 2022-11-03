@@ -3,13 +3,13 @@
 //! 附加 peek_back push_back pop_back 此三方法循环或递归找队尾, 效率极低, pop_back 用了 unsafe
 
 #[derive(Debug)]
-struct Node<T> {
+pub(crate) struct Node<T> {
     elem: T,
     next: Link<T>,
     //prev
 }
 
-type Link<T> = Option<Box<Node<T>>>;
+pub(crate) type Link<T> = Option<Box<Node<T>>>;
 
 /// 如下函数编译成功证明了 `LinkedStack<T>` 对 `T` 协变
 /// ```no_run
@@ -34,10 +34,7 @@ mod test;
 // 循环 drop , 不这样做的话, 默认的 Drop 是递归的, 元素多时会爆栈
 impl<T> Drop for LinkedStack<T> {
     default fn drop(&mut self) {
-        let mut link = self.head.take();
-        while let Some(mut boxed_node) = link {
-            link = boxed_node.next.take();
-        }
+        while let Some(_) = self.pop() {}
     }
 }
 
@@ -171,6 +168,18 @@ impl<T> LinkedStack<T> {
                 link.take().map(|node| node.elem)
             }
         }
+    }
+
+    pub(crate) fn push_node(&mut self, mut node: Box<Node<T>>) {
+        node.next = self.head.take();
+        self.head = Some(node);
+    }
+
+    pub(crate) fn pop_node(&mut self) -> Option<Box<Node<T>>> {
+        self.head.take().map(|mut node| {
+            self.head = node.next.take();
+            node
+        })
     }
 }
 
