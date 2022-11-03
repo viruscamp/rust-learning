@@ -111,27 +111,52 @@ mod test_variance {
 
     #[test]
     #[ignore]
+    // 简单用泛型条件理解即可, 没必要用协变逆变
     fn trait_covariant() {
-        // `Cage<A: Animal>`对`A`协变
+        // `Cage<A: Animal>`对`A`协变 应该说类型实例化的过程全都是协变 没有逆变 不变
+        // 简单用泛型条件理解即可, 没必要用协变逆变
         struct Cage<A: Animal>(Option<A>);
 
         fn put_in_cage<A: Animal>(c: Cage<A>) {}
 
         fn put_dog_in_cage<D: Dog>(c: Cage<D>) {
-            // `Cage<Dog>` 是 `Cage<Animal>` 的子类型, 协变
+            // `Cage<Dog>` 是 `Cage<Animal>` 的子类型
             put_in_cage(c);
         }
 
-        // `Cage<CorgiDog>` 是 `Cage<Animal>` 的子类型, 协变
+        // `Cage<CorgiDog>` 是 `Cage<Animal>` 的子类型
         put_in_cage(Cage(Some(CorgiDog)));
 
-        // `Cage<CorgiDog>` 是 `Cage<Dog>` 的子类型, 协变
+        // `Cage<CorgiDog>` 是 `Cage<Dog>` 的子类型
         put_dog_in_cage(Cage::<CorgiDog>(None));
     }
 
     #[test]
     #[ignore]
-    fn trait_fn_contravariant_covariant() {
+    fn trait_fn_covariant() {
+        fn use_fn<A: Animal, F: Fn() -> A>(f: F) {
+        }
+
+        fn use_fn_2<D: Dog, F: Fn() -> D>(f: F) {
+            use_fn(f);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn trait_fn_contravariant() {
+        fn use_fn<C: Cat, F: Fn(C)>(f: F) {
+        }
+
+        fn use_fn_2<C: Animal, F: Fn(C)>(f: F) {
+            // use_fn(f); // 错误 那么就不是逆变关系
+        }
+    }
+
+    #[test]
+    #[ignore]
+    /// 理解错误 请不要用 协变逆变来理解, 用类型实例化理解
+    fn trait_fn_contravariant_covariant_1() {
         struct CatDog<C: Cat, D: Dog>(C, D);
         impl<C: Cat, D: Dog> CatDog<C, D> {
             fn use_fn<F: Fn(C) -> D>(&self, f: F) {
@@ -152,12 +177,13 @@ mod test_variance {
         
         let cd = CatDog(BlueCat, CorgiDog);
         cd.use_fn(cat_to_dog);
-        cd.use_fn(animal_to_corgi);  // 同时协变 逆变
+        cd.use_fn(animal_to_corgi);  // 同时协变 逆变 是吗? 不是
         cd.use_fn(blue_cat_to_corgi); // 这个算什么?
     }
 
     #[test]
     #[ignore]
+    /// 理解错误 请不要用 协变逆变理解, 用类型实例化理解
     fn trait_fn_contravariant_covariant_2() {
         fn cat_to_dog<C: Cat, D: Dog>(a: C) -> D {
             unimplemented!()
@@ -183,7 +209,7 @@ mod test_variance {
         }
 
         use_fn(cat_to_dog::<WhiteCat, BlackDog>);
-        use_fn(animal_to_corgi::<BlueCat>);  // 同时协变 逆变
+        use_fn(animal_to_corgi::<BlueCat>);  // 同时协变 逆变 是吗? 不是
         use_fn(white_cat_to_black_dog); // 这个算什么?
     }
 
@@ -208,6 +234,7 @@ mod test_variance {
 
     #[test]
     #[ignore]
+    /// 函数类型 参数逆变
     fn lifetime_contravariant() {
         let str = String::from("hello");
         lifetime_contravariant_impl(str.as_str());
@@ -235,6 +262,7 @@ mod test_variance {
 
     #[test]
     #[ignore]
+    /// 函数类型 返回值协变
     fn lifetime_fn_covariant() {
         let str1 = String::from("xyz");
         lifetime_fn_covariant_impl(str1.as_str());

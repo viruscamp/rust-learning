@@ -17,7 +17,7 @@
 
 ## 生存期子类型
 Rust 没有实际类型 `struct`, `enum` 和 `union` 的继承,    
-实际类型的子类型关系只体现在生存期上, 可以通过赋值简单证明.    
+子类型关系只体现在生存期上, 可以通过赋值来证明.    
 
 子类型的值可以转型为父类型:
 ```rust, no_run
@@ -61,112 +61,6 @@ fn main() {
 1. 许多类型和生存期参数是 rustc 自动推导的, 我们无法明确的写出
 2. 自动推导出的生存期符合子类型关系
 3. 静态生存期`&'static T`是任意生存期`&'x T`的子类型
-
-## 泛型`trait`子类型
-`trait` 之间, `trait`与实际类型之间, 都可能存在子类型关系.  
-这种子类型关系, 只能体现在泛型上下文中, 一般无法通过赋值来简单的证明.  
-
-### 展示`trait`子类型关系
-```rust, no_run
-trait Animal {
-    fn eat(&self) {}
-}
-
-trait Dog : Animal {
-    fn bark(&self) {}
-}
-
-struct CorgiDog;
-impl Animal for CorgiDog {}
-impl Dog for CorgiDog {}
-
-fn use_animal<A: Animal>(a: A) {}
-
-fn use_dog<D: Dog>(d: D) {
-    // `Dog` 是 `Animal` 的子类型
-    use_animal(d);
-}
-
-// `CorgiDog` 是 `Animal` 的子类型
-use_animal(CorgiDog);
-
-// `CorgiDog` 是 `Dog` 的子类型
-use_dog(CorgiDog);
-```
-
-### 泛型`trait`协变
-```rust, no_run
-trait Animal {
-    fn eat(&self) {}
-}
-
-trait Dog : Animal {
-    fn bark(&self) {}
-}
-
-struct CorgiDog;
-impl Animal for CorgiDog {}
-impl Dog for CorgiDog {}
-
-// `Cage<A: Animal>`对`A`协变
-struct Cage<A: Animal>(Option<A>);
-
-fn put_in_cage<A: Animal>(c: Cage<A>) {}
-
-fn put_dog_in_cage<D: Dog>(c: Cage<D>) {
-    // `Cage<Dog>` 是 `Cage<Animal>` 的子类型, 协变
-    put_in_cage(c);
-}
-
-// `Cage<CorgiDog>` 是 `Cage<Animal>` 的子类型, 协变
-put_in_cage(Cage(Some(CorgiDog)));
-
-// `Cage<CorgiDog>` 是 `Cage<Dog>` 的子类型, 协变
-put_dog_in_cage(Cage::<CorgiDog>(None));
-```
-类似代码同样可证明 `Vec<Dog>` 是 `Vec<Animal>` 的子类型, `Vec<T>` 对 `T`协变.
-
-### 泛型`trait`协变逆变
-证明了`Fn<A> -> R`对`A`逆变, 对`R`协变
-```rust, no_run
-trait Animal {
-    fn eat(&self) {}
-}
-
-trait Dog : Animal {
-    fn bark(&self) {}
-}
-
-trait Cat : Animal {
-    fn moew(&self) {}
-}
-
-struct CorgiDog;
-impl Animal for CorgiDog {}
-impl Dog for CorgiDog {}
-
-struct BlueCat;
-impl Animal for BlueCat {}
-impl Cat for BlueCat {}
-
-struct CatDog<C: Cat, D: Dog>(C, D);
-impl<C: Cat, D: Dog> CatDog<C, D> {
-    fn use_fn<F: Fn(C) -> D>(&self, f: F) {
-    }
-}
-
-fn cat_to_dog<C: Cat, D: Dog>(a: C) -> D {
-    unimplemented!()
-}
-
-fn animal_to_corgi<A: Animal>(a: A) -> CorgiDog {
-    CorgiDog
-}
-
-let cd = CatDog(BlueCat, CorgiDog);
-cd.use_fn(cat_to_dog);
-cd.use_fn(animal_to_corgi);  // 同时协变 逆变
-```
 
 ## Rust 协变 逆变 不变
 
