@@ -68,9 +68,9 @@ fn main() {
 编译成功 证明 `Vec<&'long i32'>` 是 `Vec<&'short i32>` 的子类型
 ```rust, no_run
 fn lifetime_covariant<'long: 'short, 'short>(a: &'short i32, b: &'long i32) {
+    //! `'long` 是 `'short` 的子类型, `&'long i32` 是 `&'short i32` 的子类型
     let mut vec_long: Vec<&'long i32> = vec![b];
     let mut vec_short: Vec<&'short i32> = vec![a];
-
     vec_short = vec_long; // 成功
 }
 ```
@@ -79,7 +79,6 @@ fn lifetime_covariant<'long: 'short, 'short>(a: &'short i32, b: &'long i32) {
 fn lifetime_covariant<'long: 'short, 'short>(a: &'short i32, b: &'long i32) {
     let mut vec_long: Vec<&'long i32> = vec![b];
     let mut vec_short: Vec<&'short i32> = vec![a];
-
     vec_long = vec_short; // 失败
 }
 ```
@@ -91,7 +90,7 @@ use std::cell::Cell;
 fn lifetime_invariant<'long: 'short, 'short>(a: &'short i32, b: &'long i32) {
     let mut cell_long: Cell<&'long i32> = Cell::new(b);
     let mut cell_short: Cell<&'short i32> = Cell::new(a);
-    cell_short = cell_long;
+    cell_short = cell_long; // 失败
 }
 ```
 编译失败 证明 `Cell<&'long i32'>` 不是 `Cell<&'short i32>` 的子类型
@@ -100,31 +99,96 @@ use std::cell::Cell;
 fn lifetime_invariant<'long: 'short, 'short>(a: &'short i32, b: &'long i32) {
     let mut cell_long: Cell<&'long i32> = Cell::new(b);
     let mut cell_short: Cell<&'short i32> = Cell::new(a);
-    cell_long = cell_short;
+    cell_long = cell_short; // 失败
 }
 ```
 
-### `Fn<A> -> ()`对`A`逆变
-编译成功 证明 `Fn(&'a str) -> ()` 是 `Fn(&'static str) -> ()` 的子类型
+### `Fn<A> -> R`对`A`逆变
+编译成功 证明 `Fn(&'a str) -> bool` 是 `Fn(&'static str) -> bool` 的子类型
 ```rust, no_run
-fn lifetime_contravariant<'t>(argt: &'t str) {
-    fn use_static(instr: &'static str) {} // 类型 `Fn(&'static str) -> ()`
-    fn use_lifetime<'a>(instr: &'a str) {} // 类型 `Fn(&'a str) -> ()`
+fn lifetime_fn_contravariant<'outer>(str_outer: &'outer str) {
+    fn compare_with_static(instr: &'static str) -> bool {
+        instr == "abc"
+    } // 类型 `Fn(&'static str) -> bool`
 
-    let closure_t = |_| {};
-    closure_t(argt); // 绑定 closure_t 和 argt, 让 rust 推断 closure_t 的类型是 `Fn(&'t str) -> ()`
+    fn make_compare_closure<'x>(a: &'x str) -> impl Fn(&'x str) -> bool {
+        return move |instr: &'x str| { instr == a }
+    } // 返回值类型 `Fn(&'x str) -> bool`
 
     struct S<'z>(&'z str);
     impl<'z> S<'z> {
-        fn use_fn<F: Fn(&'z str) -> ()>(&self, f: F) {
+        fn do_compare<F: Fn(&'z str) -> bool>(&self, f: F) -> bool {
             f(self.0)
         }
     }
 
-    let s: S<'static> = S("abc"); // s.use_fn 实际类型为 `fn use_fn(&self, f: Fn(&'static str) -> ()) -> ()`
-    s.use_fn(use_static); // 当然可以用 `Fn(&'static str) -> ()` 做参数
-    s.use_fn(use_lifetime); // 指定生存期参数的函数 `Fn(&'a str) -> ()` 也可以, 已知 `'static: 'a`, 这就是逆变
-    s.use_fn(closure_t); // `Fn(&'t str) -> ()` 也可以, 当然有 `'static: 't`, 这也是逆变
+    let s_static: S<'static> = S("xyz"); // `s_static.do_compare` 参数类型为 `Fn(&'static str) -> bool`
+    s_static.do_compare(compare_with_static); // 类型相符, 当然可以用 `Fn(&'static str) -> bool` 做参数
+    s_static.do_compare(make_compare_closure("really static")); // 类型相符
+    s_static.do_compare(make_compare_closure(str_outer)); // 逆变, 实参类型为 `Fn(&'outer str) -> bool`
+
+    let s_outer: S<'outer> = S(str_outer); // `s_outer.do_compare` 参数类型为 `Fn(&'outer str) -> bool`
+    //s_outer.do_compare(compare_with_static); // 协变失败
+    //s_outer.do_compare(make_compare_closure("really static")); // 协变失败
+    s_outer.do_compare(make_compare_closure(str_outer)); // 类型相符
+
+    {
+        let str_inner = String::from("inner"); // 命名其生存期为 'inner
+
+        s_static.do_compare(make_compare_closure(&str_inner)); // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'static str) -> bool`
+        s_outer.do_compare(make_compare_closure(&str_inner));  // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'outer str) -> bool`
+    }
+
+    // 强制拉长生存期
+    s_outer;
+    s_static;
+    str_outer;
+}
+```
+
+### `Fn<A> -> R`对`R`协变
+编译成功 证明 `Fn() -> &'static str` 是 `Fn() -> &'a str` 的子类型
+```rust, no_run
+fn lifetime_fn_covariant<'outer>(str_outer: &'outer str) {
+    fn return_static() -> &'static str {
+        "abc"
+    } // 类型 `Fn() -> &'static str`
+
+    fn make_return_closure<'x>(a: &'x str) -> impl Fn() -> &'x str {
+        return move || { a }
+    } // 返回值类型 `Fn() -> &'x str`
+
+    struct S<'z>(&'z str);
+    impl<'z> S<'z> {
+        fn set_with<F: Fn() -> &'z str>(&mut self, f: F) -> () {
+            self.0 = f();
+        }
+    }
+
+    let mut s_static: S<'static> = S("xyz"); // `s_static.set_with` 参数类型为 `Fn() -> &'static str`
+    s_static.set_with(return_static); // 类型相符, 当然可以用 `Fn() -> &'static str` 做参数
+    s_static.set_with(make_return_closure("really static")); // 类型相符
+    //s_static.set_with(make_return_closure(str_outer)); // 逆变失败
+
+    let mut s_outer: S<'outer> = S(str_outer); // `s_outer.set_with` 参数类型为 `Fn() -> &'outer str`
+    //s_outer.set_with(return_static); // 理论可以协变, 实际会导致 `s_outer` 类型推断成 `S<'static>`, 然后编译失败, 无法达到目的
+    s_outer.set_with(make_return_closure("really static")); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'outer str`
+    s_outer.set_with(make_return_closure(str_outer)); // 类型相符
+
+    {
+        let str_inner = String::from("inner"); // 命名其生存期为 'inner
+
+        let mut s_inner: S = S(str_inner.as_str()); // `s_inner.set_with` 参数类型为 `Fn() -> &'inner str`
+        //s_inner.set_with(return_static); // 理论可以协变, 实际会导致 `s_inner` 类型推断成 `S<'static>`, 然后编译失败, 无法达到目的
+        s_inner.set_with(make_return_closure("really static")); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'inner str`
+        s_inner.set_with(make_return_closure(str_outer)); // 协变, 实参`Fn() -> &'outer str` 替代形参 `Fn() -> &'inner str`
+        s_inner.set_with(make_return_closure(str_inner.as_str())); // 类型相符
+    }
+
+    // 强制拉长生存期
+    s_outer;
+    s_static;
+    str_outer;
 }
 ```
 
