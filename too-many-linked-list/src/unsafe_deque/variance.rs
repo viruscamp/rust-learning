@@ -102,6 +102,8 @@ mod lifetime_variance {
     }
 
     fn lifetime_fn_contravariant_impl<'outer>(str_outer: &'outer str) {
+        let str_static: &'static str = "static";
+
         fn compare_with_static(instr: &'static str) -> bool {
             instr == "abc"
         } // 类型 `Fn(&'static str) -> bool`
@@ -119,19 +121,20 @@ mod lifetime_variance {
 
         let s_static: S<'static> = S("xyz"); // `s_static.do_compare` 参数类型为 `Fn(&'static str) -> bool`
         s_static.do_compare(compare_with_static); // 类型相符, 当然可以用 `Fn(&'static str) -> bool` 做参数
-        s_static.do_compare(make_compare_closure("really static")); // 类型相符
+        s_static.do_compare(make_compare_closure(str_static)); // 类型相符
         s_static.do_compare(make_compare_closure(str_outer)); // 逆变, 实参类型为 `Fn(&'outer str) -> bool`
 
         let s_outer: S<'outer> = S(str_outer); // `s_outer.do_compare` 参数类型为 `Fn(&'outer str) -> bool`
         //s_outer.do_compare(compare_with_static); // 协变失败
-        //s_outer.do_compare(make_compare_closure("really static")); // 协变失败
+        //s_outer.do_compare(make_compare_closure(str_static)); // 协变失败
         s_outer.do_compare(make_compare_closure(str_outer)); // 类型相符
 
         {
-            let str_inner = String::from("inner"); // 命名其生存期为 'inner
+            let string_inner = String::from("inner"); // 命名其生存期为 'inner
+            let str_inner: &str = string_inner.as_str();
 
-            s_static.do_compare(make_compare_closure(&str_inner)); // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'static str) -> bool`
-            s_outer.do_compare(make_compare_closure(&str_inner));  // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'outer str) -> bool`
+            s_static.do_compare(make_compare_closure(str_inner)); // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'static str) -> bool`
+            s_outer.do_compare(make_compare_closure(str_inner));  // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'outer str) -> bool`
         }
 
         // 强制拉长生存期
@@ -149,6 +152,8 @@ mod lifetime_variance {
     }
 
     fn lifetime_fn_covariant_impl<'outer>(str_outer: &'outer str) {
+        let str_static: &'static str = "static";
+
         fn return_static() -> &'static str {
             "abc"
         } // 类型 `Fn() -> &'static str`
@@ -166,22 +171,23 @@ mod lifetime_variance {
 
         let mut s_static: S<'static> = S("xyz"); // `s_static.set_with` 参数类型为 `Fn() -> &'static str`
         s_static.set_with(return_static); // 类型相符, 当然可以用 `Fn() -> &'static str` 做参数
-        s_static.set_with(make_return_closure("really static")); // 类型相符
+        s_static.set_with(make_return_closure(str_static)); // 类型相符
         //s_static.set_with(make_return_closure(str_outer)); // 逆变失败
 
         let mut s_outer: S<'outer> = S(str_outer); // `s_outer.set_with` 参数类型为 `Fn() -> &'outer str`
         //s_outer.set_with(return_static); // 理论可以协变, 实际会导致 `s_outer` 类型推断成 `S<'static>`, 然后编译失败, 无法达到目的
-        s_outer.set_with(make_return_closure("really static")); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'outer str`
+        s_outer.set_with(make_return_closure(str_static)); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'outer str`
         s_outer.set_with(make_return_closure(str_outer)); // 类型相符
 
         {
-            let str_inner = String::from("inner"); // 命名其生存期为 'inner
+            let string_inner = String::from("inner"); // 命名其生存期为 'inner
+            let str_inner: &str = string_inner.as_str();
 
-            let mut s_inner: S = S(str_inner.as_str()); // `s_inner.set_with` 参数类型为 `Fn() -> &'inner str`
+            let mut s_inner: S = S(str_inner); // `s_inner.set_with` 参数类型为 `Fn() -> &'inner str`
             //s_inner.set_with(return_static); // 理论可以协变, 实际会导致 `s_inner` 类型推断成 `S<'static>`, 然后编译失败, 无法达到目的
-            s_inner.set_with(make_return_closure("really static")); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'inner str`
+            s_inner.set_with(make_return_closure(str_static)); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'inner str`
             s_inner.set_with(make_return_closure(str_outer)); // 协变, 实参`Fn() -> &'outer str` 替代形参 `Fn() -> &'inner str`
-            s_inner.set_with(make_return_closure(str_inner.as_str())); // 类型相符
+            s_inner.set_with(make_return_closure(str_inner)); // 类型相符
         }
 
         // 强制拉长生存期
