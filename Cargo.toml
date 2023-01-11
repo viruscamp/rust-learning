@@ -13,4 +13,5 @@ members = [
     #"unit-transform-mod",
     
     "too-many-linked-list",
+    "advanced_fn",
 ]
