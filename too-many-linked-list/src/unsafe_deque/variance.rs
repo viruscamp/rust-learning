@@ -97,50 +97,66 @@ mod lifetime_variance {
     #[ignore]
     /// 函数参数逆变
     fn lifetime_fn_contravariant() {
-        let str_outer = String::from("outer");
-        lifetime_fn_contravariant_impl(str_outer.as_str());
+        let string_outer = String::from("outer");
+        lifetime_fn_contravariant_impl(string_outer.as_str());
     }
 
     fn lifetime_fn_contravariant_impl<'outer>(str_outer: &'outer str) {
         let str_static: &'static str = "static";
 
         fn compare_with_static(instr: &'static str) -> bool {
-            instr == "abc"
+            instr == "static"
         } // 类型 `Fn(&'static str) -> bool`
 
         fn make_compare_closure<'x>(a: &'x str) -> impl Fn(&'x str) -> bool {
-            return move |instr: &'x str| { instr == a }
+            move |instr: &'x str| {
+                instr == a
+            }
         } // 返回值类型 `Fn(&'x str) -> bool`
 
         struct S<'z>(&'z str);
         impl<'z> S<'z> {
-            fn do_compare<F: Fn(&'z str) -> bool>(&self, f: F) -> bool {
-                f(self.0)
+            fn do_compare<F: FnMut(&'z str) -> bool>(&self, mut f: F) -> F {
+                f(self.0);
+                f
             }
         }
 
+        let mut closure_compare_static = make_compare_closure(str_static);
+        let mut closure_compare_outer = make_compare_closure(str_outer);
+
         let s_static: S<'static> = S("xyz"); // `s_static.do_compare` 参数类型为 `Fn(&'static str) -> bool`
         s_static.do_compare(compare_with_static); // 类型相符, 当然可以用 `Fn(&'static str) -> bool` 做参数
-        s_static.do_compare(make_compare_closure(str_static)); // 类型相符
-        s_static.do_compare(make_compare_closure(str_outer)); // 逆变, 实参类型为 `Fn(&'outer str) -> bool`
+        closure_compare_static = s_static.do_compare(closure_compare_static); // 类型相符
+        closure_compare_outer = s_static.do_compare(closure_compare_outer); // 逆变, 实参类型为 `Fn(&'outer str) -> bool`
 
         let s_outer: S<'outer> = S(str_outer); // `s_outer.do_compare` 参数类型为 `Fn(&'outer str) -> bool`
         //s_outer.do_compare(compare_with_static); // 协变失败
-        //s_outer.do_compare(make_compare_closure(str_static)); // 协变失败
-        s_outer.do_compare(make_compare_closure(str_outer)); // 类型相符
+        closure_compare_static = s_outer.do_compare(closure_compare_static); // 预计为协变失败, 实际可以编译, 应该是自动类型推断导致其并非协变
+        closure_compare_outer = s_outer.do_compare(closure_compare_outer); // 类型相符
 
         {
             let string_inner = String::from("inner"); // 命名其生存期为 'inner
             let str_inner: &str = string_inner.as_str();
+            let mut closure_compare_inner = make_compare_closure(str_inner);
 
-            s_static.do_compare(make_compare_closure(str_inner)); // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'static str) -> bool`
-            s_outer.do_compare(make_compare_closure(str_inner));  // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'outer str) -> bool`
+            closure_compare_inner = s_static.do_compare(closure_compare_inner); // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'static str) -> bool`
+            closure_compare_inner = s_outer.do_compare(closure_compare_inner);  // 逆变, 实参`Fn(&'inner str) -> bool` 替代形参 `Fn(&'outer str) -> bool`
+
+            let s_inner = S(str_inner);
+            //closure_compare_static = s_inner.do_compare(closure_compare_static); // 协变失败
+            //closure_compare_outer = s_inner.do_compare(closure_compare_outer); // 协变失败
+            closure_compare_inner = s_inner.do_compare(closure_compare_inner); // 类型相符
+
+            s_inner.do_compare(make_compare_closure(str_outer)); // 预计为协变失败, 实际可以编译, 应该是自动类型推断导致其并非协变
         }
-
         // 强制拉长生存期
-        s_outer;
-        s_static;
-        str_outer;
+        drop(closure_compare_outer);
+        drop(closure_compare_static);
+
+        drop(s_outer);
+        drop(s_static);
+        drop(str_outer);
     }
 
     #[test]
@@ -159,7 +175,7 @@ mod lifetime_variance {
         } // 类型 `Fn() -> &'static str`
 
         fn make_return_closure<'x>(a: &'x str) -> impl Fn() -> &'x str {
-            return move || { a }
+            move || { a }
         } // 返回值类型 `Fn() -> &'x str`
 
         struct S<'z>(&'z str);
@@ -188,12 +204,50 @@ mod lifetime_variance {
             s_inner.set_with(make_return_closure(str_static)); // 协变, 实参`Fn() -> &'static str` 替代形参 `Fn() -> &'inner str`
             s_inner.set_with(make_return_closure(str_outer)); // 协变, 实参`Fn() -> &'outer str` 替代形参 `Fn() -> &'inner str`
             s_inner.set_with(make_return_closure(str_inner)); // 类型相符
+
+            //s_outer.set_with(make_return_closure(str_inner)); // 逆变失败
         }
 
         // 强制拉长生存期
         s_outer;
         s_static;
         str_outer;
+    }
+
+    /// 函数逆变 失败的赋值证明, 自动类型推断 fn_long 和 fn_long 为同一类型
+    fn lifetime_fn_contravariant_set<'long: 'short, 'short>(i_short: &'short i32, i_long: &'long i32) {
+        //! `'long` 是 `'short` 的子类型, `&'long i32` 是 `&'short i32` 的子类型
+        fn make_compare_closure<'x, T: PartialEq>(v: &'x T) -> impl Fn(&'x T) -> bool {
+            move |inarg: &'x T| { inarg == v }
+        } // 返回值类型 `Fn(&'x T) -> bool`
+        let mut fn_long = make_compare_closure(i_long);
+        let mut fn_short = make_compare_closure(i_short);
+        fn_long = fn_short;
+        fn_short = fn_long; 
+    }
+
+    /// 函数协变 失败的赋值证明, 自动类型推断 fn_long 和 fn_long 为同一类型
+    fn lifetime_fn_covariant_set<'long: 'short, 'short>(i_short: &'short i32, i_long: &'long i32) {
+        //! `'long` 是 `'short` 的子类型, `&'long i32` 是 `&'short i32` 的子类型
+        fn make_return_closure<'x, T>(v: &'x T) -> impl Fn() -> &'x T {
+            move || { v }
+        } // 返回值类型 `Fn() -> &'x T`
+        let mut fn_long = make_return_closure(i_long);
+        let mut fn_short = make_return_closure(i_short);
+        fn_short = fn_long;
+        fn_long = fn_short;
+    }
+    
+    /// 函数协变逆变 失败的赋值证明, 自动类型推断 fn_long 和 fn_long 为同一类型
+    fn lifetime_fn_co_contra_variant_set<'long: 'short, 'short>(i_short: &'short i32, i_long: &'long i32, i_static: &'static i32) {
+        //! `'long` 是 `'short` 的子类型, `&'long i32` 是 `&'short i32` 的子类型
+        fn make_closure<'x, 'y, T>(vx: &'x T, vy: &'y T) -> impl Fn(&'x T) -> &'y T {
+            move |inarg: &'x T| { vy }
+        } // 返回值类型 `Fn(&'x T) -> &'y T`
+        let mut fn_long = make_closure(i_long, i_long);
+        let mut fn_short_static = make_closure(i_short, i_static);
+        fn_long = fn_short_static;
+        fn_short_static = fn_long;
     }
 }
 

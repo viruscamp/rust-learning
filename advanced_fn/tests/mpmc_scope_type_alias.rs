@@ -8,7 +8,7 @@ use std::vec::Vec;
 
 static MAX: i32 = 100;
 
-abstract type Worker<'a> = impl FnOnce() + Send + 'a;
+type Worker<'a> = impl FnOnce() + Send + 'a;
 fn mpmc_test_scope_type_alias<MW>(make_worker: MW)
 where for<'a> MW: Fn(i32, &'a Mutex<Vec<i32>>) -> Worker<'a>
 {
