@@ -14,4 +14,5 @@ members = [
     
     "too-many-linked-list",
     "advanced_fn",
+    "float-cast",
 ]
