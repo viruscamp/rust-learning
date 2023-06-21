@@ -71,7 +71,7 @@ a.f2();
 ### 例外，可能需要手写 `&mut *t`  
   - 例外1 泛型 `F=&mut X`
 ```rust
-fn from<F, T: From<F>>)(f: F) -> T {
+fn from<F, T: From<F>>(f: F) -> T {
   T::from(f)
 }
 let i = 4;
@@ -79,7 +79,7 @@ let x = &mut i;
 from(x); // 此处不会自动重借用
 from(x); // 第二次调用失败
 
-fn from2<F, T: From<&mut F>>)(f: &mut F) -> T {
+fn from2<F, T: From<&mut F>>(f: &mut F) -> T {
   T::from(f)
 }
 from2(x); // 可以自动重借用
