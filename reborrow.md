@@ -1,5 +1,7 @@
 # 重借用 reborrow
 
+我碰到的问题是[^2], 目前文档不够[^1], 只有一篇开发人员的blog[^3], 在 The Book 和 The Reference 内基本没提。
+
 ## 问题
 要是没有自动重借用，下面的简单代码都会失败
 ```rust
@@ -33,10 +35,25 @@ fn reborrow(r: &i32, rm: &mut i32) {
 }
 ```
 对于不可变借用 `&i32` 通常不关心重借用, 因为 `Copy`.  
-对于可变借用, 可以使用 borrow stack 借用栈，分析得到，虽然同时有多个可变借用存在，但只有一个有效，那么不会违反借用规则. [^2]
+对于可变借用, 可以使用 borrow stack 借用栈，来做分析，虽然同时有多个可变借用存在，但只有一个有效，那么不会违反借用规则. [^4]  
+borrow stack 如下所示， 栈底为 owner, 栈内为所有存活的借用变量，栈顶为有效借用
+```rust
+fn borrow_stack() {
+    let mut a = (3, 4u32); // a
+    let a1 = &mut a; // a, a1
+
+    let (ref mut z, ref mut x) = a1;
+    // a, a1, z
+    // a, a1, x
+    
+    let z1 = &mut*z; // a, a1, z, z1
+    *z = 4; // a, a1, z
+    z.clone(); // a, a1, z, z_temp: &i32
+}
+```
 
 ## 自动重借用
-自动重借用，函数消耗的变量是自动生成的重借用，调用结束后，被重借用的变量再次有效。  
+### 自动重借用，函数消耗的变量是自动生成的重借用，调用结束后，被重借用的变量再次有效。  
 ```rust
 fn f1(t: &mut T);
 fn f2(&mut self);
@@ -51,8 +68,8 @@ a.f2();
 (&mut *a).f2();
 ```
 
-  例外，可能需要手写 `&mut *t`  
-    - 例外1 泛型 `F=&mut X`
+### 例外，可能需要手写 `&mut *t`  
+  - 例外1 泛型 `F=&mut X`
 ```rust
 fn from<F, T: From<F>>)(f: F) -> T {
   T::from(f)
@@ -68,7 +85,7 @@ fn from2<F, T: From<&mut F>>)(f: &mut F) -> T {
 from2(x); // 可以自动重借用
 from2(x); // 可以自动重借用
 ```
-    - 例外2 多个可变借用参数
+  - 例外2 多个借用参数
 ```rust
 fn ex2(t: &mut T, x: &mut X);
 ex2(t, x);
