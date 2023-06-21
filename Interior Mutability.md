@@ -8,7 +8,7 @@
   - 单线程 `Cell<T>` `RefCell<T>` 通常用 `Rc` 再次包装
   - 多线程 原子类型`AtomicBool` 锁类型 `Mutex<T>` `RwLock<T>` 通常用 `Arc` 再次包装
 
-3. `Cell<T>` 对标 `AtomicBool` 系列原子类型
+3. `Cell<T>` 对标 `AtomicBool` 系列原子类型  
   首先尝试 Cell 不满足条件再使用 RefCell
   - 设值 `Cell::set` `Atomic*::store`
   - 取值 `Cell::<T>::get() where T: Copy` `Atomic*::load`
