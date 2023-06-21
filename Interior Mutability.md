@@ -6,7 +6,8 @@
 
 2. 有内部可变性的数据结构
   - 单线程 `Cell<T>` `RefCell<T>` 通常用 `Rc` 再次包装
-  - 多线程 原子类型`AtomicBool` 锁类型 `Mutex<T>` `RwLock<T>` 通常用 `Arc` 再次包装
+  - 多线程 原子类型`AtomicBool` 锁类型 `Mutex<T>` `RwLock<T>` 通常用 `Arc` 再次包装  
+    通用的泛型原子类型 [atomic](https://crates.io/crates/atomic)
 
 3. `Cell<T>` 对标 `AtomicBool` 系列原子类型  
   首先尝试 Cell 不满足条件再使用 RefCell
