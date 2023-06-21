@@ -1,8 +1,8 @@
 # 重借用 reborrow
 
 ## 问题
+要是没有自动重借用，下面的简单代码都会失败
 ```rust
-// 要是没有自动重借用，下面的简单代码都会失败
 fn set_pos(p: &mut Pos) {
     p.set_x(3); // 应该已经消耗了 p
     p.set_y(4); // 此处 p 为何有效?
@@ -15,6 +15,9 @@ impl Pos {
 ```
 
 ## 定义
+解引用后再次引用, 生成一个类型相同，但生存期不同的变量，通常生存期更短。  
+在重借用的变量存活期间，被重借用的变量存在但无效。  
+在重借用的变量 leave scope 后, 被重借用的变量再次有效。  
 ```rust
 fn reborrow(r: &i32, rm: &mut i32) {
   // 显式重借用
@@ -30,9 +33,10 @@ fn reborrow(r: &i32, rm: &mut i32) {
 }
 ```
 对于不可变借用 `&i32` 通常不关心重借用, 因为 `Copy`.  
-对于可变借用, 可以使用 borrow stack 借用栈，分析得到，虽然同时有多个可变借用存在，但只有一个有效，那么不会违反借用规则
+对于可变借用, 可以使用 borrow stack 借用栈，分析得到，虽然同时有多个可变借用存在，但只有一个有效，那么不会违反借用规则. [^2]
 
 ## 自动重借用
+自动重借用，函数消耗的变量是自动生成的重借用，调用结束后，被重借用的变量再次有效。  
 ```rust
 fn f1(t: &mut T);
 fn f2(&mut self);
@@ -47,8 +51,8 @@ a.f2();
 (&mut *a).f2();
 ```
 
-  例外，可能需要手写 `&mut *t`
-    * 例外1 泛型 `F=&mut X`
+  例外，可能需要手写 `&mut *t`  
+    - 例外1 泛型 `F=&mut X`
 ```rust
 fn from<F, T: From<F>>)(f: F) -> T {
   T::from(f)
@@ -64,15 +68,14 @@ fn from2<F, T: From<&mut F>>)(f: &mut F) -> T {
 from2(x); // 可以自动重借用
 from2(x); // 可以自动重借用
 ```
-
-    * 例外2 多个可变借用参数
+    - 例外2 多个可变借用参数
 ```rust
 fn ex2(t: &mut T, x: &mut X);
 ex2(t, x);
 //可能只对 t 重借用了，而没有重借用 x
 ```
 
-## References
+## 参考
 [^1]: [better documentation of reborrowing#788](https://github.com/rust-lang/reference/issues/788#issuecomment-1420528041)
 [^2]: https://rustcc.cn/article?id=28fedcbc-d0c9-41e1-8d95-de73a578a078
 [^3]: https://github.com/nikomatsakis/babysteps/blob/master/babysteps/_posts/2013-11-20-parameter-coercion-in-rust.markdown?plain=1#L78
