@@ -55,6 +55,11 @@ macro_rules! stack_info {
 fn recursion_drop_stackoverflow() {
     struct I(i32);
     impl LinkedStackRecursionDrop for I {}
+    impl LinkedStackItem for I {
+        fn drop_recursive() -> bool {
+            true
+        }
+    }
 
     fn test(n: usize) {
         let mut list = List::new();
@@ -84,6 +89,12 @@ fn recursion_drop() {
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     struct I(i32);
     impl LinkedStackRecursionDrop for I {}
+    impl LinkedStackItem for I {
+        fn drop_recursive() -> bool {
+            true
+        }
+    }
+    
     // 使用递归 drop 打断点看 call stack 增加
     // 用 backtrace::trace 拿到 drop 时的 stack pointer , 应该不同, 栈增长, sp递减
     impl Drop for I {

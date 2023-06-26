@@ -1,4 +1,6 @@
-#![feature(specialization)]
+//#![feature(specialization)]
+#![feature(min_specialization)]
+#![feature(rustc_attrs)]
 
 pub mod bad;
 

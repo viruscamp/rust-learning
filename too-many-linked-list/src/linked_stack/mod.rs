@@ -19,7 +19,7 @@ pub(crate) type Link<T> = Option<Box<Node<T>>>;
 ///     //let list_long_new: LinkedStack<&'long i32> = list_short; // 证明逆变
 /// }
 /// ```
-pub struct LinkedStack<T> {
+pub struct LinkedStack<T: LinkedStackItem> {
     head: Link<T>,
     //tail
 }
@@ -31,18 +31,34 @@ mod iter_mut;
 #[cfg(test)]
 mod test;
 
+pub trait LinkedStackItem {
+    fn drop_recursive() -> bool;
+}
+impl<T> LinkedStackItem for T {
+    default fn drop_recursive() -> bool {
+        false
+    }
+}
+
 // 循环 drop , 不这样做的话, 默认的 Drop 是递归的, 元素多时会爆栈
-impl<T> Drop for LinkedStack<T> {
+impl<T: LinkedStackItem> Drop for LinkedStack<T> {
     default fn drop(&mut self) {
+        if T::drop_recursive() {
+            return;
+        }
         while let Some(_) = self.pop() {}
     }
 }
 
-// 测试用 强制使用默认的递归 drop
+// 泛型特化 测试用 强制使用默认的递归 drop
+// 不能用了, 至少在 rustc 1.72.0-nightly (8084f397c 2023-06-25)
+#[rustc_specialization_trait] 
 pub trait LinkedStackRecursionDrop {}
+/*
 impl<T: LinkedStackRecursionDrop> Drop for LinkedStack<T> {
     fn drop(&mut self) {}
 }
+*/
 
 impl<T> LinkedStack<T> {
     /// Create a new empty LinkedStack.
