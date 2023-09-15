@@ -2,6 +2,21 @@
 - [Rust的Pin与Unpin](https://folyd.com/blog/rust-pin-unpin/)
 - [Pin UnPin 学习笔记](https://rustcc.cn/article?id=1d0a46fa-da56-40ae-bb4e-fe1b85f68751)
 
+# 类型
+- `T: Unpin` 无须钉住
+- `T: !Unpin` 必须钉住
+    * 如果其公开API可以直接创建, 那么一定可以 move 就违反了语义
+    * 一般其构造函数内部使用`new_unchecked`返回 `Pin<&mut T>`
+- `struct Pin`, 不要写 `Pin<T: !Unpin>` 一般条件是 `Pin<P<T: !Unpin>> where P: Deref<Target=T>`
+    * 对 `T: Unpin` 类型是一个普通的指针型包装类  
+    构造 `fn new(t: T) -> Pin<T>`  
+    解构 `fn into_inner(pin: Pin<T>) -> T`  
+    可变引用 `impl<T> DerefMut for Pin<T>`  
+    * 对 `T: !Unpin` 限制极大, 无法的 safe 得到 `T`, `&mut T`  
+    构造 `unsafe fn new_unchecked(pointer: P) -> Pin<P>`  
+    解构 `unsafe fn into_inner_unchecked(pin: Pin<P>) -> P`  
+    可变引用 `unsafe fn get_unchecked_mut(self) -> &'a mut T`  
+
 # 笔记
 0. 自引用结构体  
 ```rust
@@ -49,9 +64,9 @@ let sr2 = new_self_ref(3);
 5. `Pin` 指针才有意义  
     比如 `Pin<&mut T>` `Pin<Box<T>>` `Pin<Arc<T>>` 等
 6. `Pin<P<T: Unpin>>` 与 `P<T>` 内存和使用都无区别, 仅用于满足类型要求
-7. `Unpin` 无需pin住  
+7. `T: Unpin` 无须pin住  
 	绝大部分类型都是 `Unpin` 自动实现
-8. `!Unpin` 必须pin住  
+8. `T: !Unpin` 必须pin住  
 9. 实现 `!Unpin`
     - 默认 `!Unpin`
         - `PhantomPinned`, 给下面的 struct 包含用
@@ -110,9 +125,6 @@ let sr2 = new_self_ref(3);
     // let t1 = pbt.get_mut(); // 虽然 Pin 这拿不到 &mut T
     std::mem::swap(&mut t, &mut t2); // 反例 但之前保留的变量可用
 ```
-
-
-
 
 Unpin 可以用于泛型约束，但是 !Unpin 不行。当需要区分时:
 ```rust
