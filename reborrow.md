@@ -98,7 +98,34 @@ let x: X = from(&mut *r); // 必须显式重借用, 创建 x 的 reborrow 不会
 let x: X = from(r); // 此处不会自动重借用, 导致 move x
 let x: X = from(r); // 第二次调用失败， 注释此句可编译
 ```
-  - 例外2 多个借用参数
+  - 例外2 闭包类型推理可能失败，必须指明闭包参数类型  
+    [请假各位大佬一个问题，似乎和reborrow有关系](https://rustcc.cn/article?id=79ae6c1e-7192-4f02-ad66-93dea2141db4)  
+```rust
+let mut a = 1;
+let b = &mut a;
+let foo = |state| {
+    Box::new(state);
+};
+
+foo(b); // value moved here
+foo(b); // borrow of moved value: `b`, value borrowed here after move
+
+// 显式重借用也不行
+foo(&mut *b); // first mutable borrow occurs here
+foo(&mut *b); // `foo`=>first borrow later used by call, `b`=>second mutable borrow occurs here
+```
+    指明闭包参数类型后可行:
+```rust
+let mut a = 1;
+let b = &mut a;
+let foo = |state: &mut i32| {
+    Box::new(state);
+};
+
+foo(b);
+foo(b);
+```
+  - 例外3 多个借用参数
 ```rust
 fn ex2(t: &mut T, x: &mut X);
 ex2(t, x);
