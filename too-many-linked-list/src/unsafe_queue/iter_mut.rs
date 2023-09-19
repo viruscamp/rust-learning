@@ -41,10 +41,10 @@ impl<'a, T> IterMut<'a, T> {
         IterMut(&mut list.head)
     }
     pub fn peek(&self) -> Option<&T> {
-        self.0.as_deref().map(|node| &node.elem)
+        self.0.as_ref().map(|node| &node.ref_node().elem)
     }
     pub fn peek_mut(&mut self) -> Option<&mut T> {
-        self.0.as_deref_mut().map(|node| &mut node.elem)
+        self.0.as_mut().map(|node| &mut node.mut_node().elem)
     }
 }
 

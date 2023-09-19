@@ -9,8 +9,8 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         // almost same as peek
         self.0.as_ref().map(|node| {
-            self.0 = &node.next;
-            &node.elem
+            self.0 = &node.ref_node().next;
+            &node.ref_node().elem
         })
     }
 }
@@ -20,11 +20,7 @@ impl<'a, T> Iter<'a, T> {
         Iter(&list.head)
     }
     pub fn peek(&self) -> Option<&T> {
-        //self.0.as_ref().map(|node| &node.elem)
-        match self.0 {
-            Some(node) => Some(&node.elem),
-            None => None,
-        }
+        self.0.as_ref().map(|node| &node.ref_node().elem)
     }
 }
 
