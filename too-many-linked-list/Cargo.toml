@@ -7,3 +7,7 @@ edition = "2018"
 
 [dependencies]
 backtrace = "*"
+
+[features]
+default = []
+box-link = []

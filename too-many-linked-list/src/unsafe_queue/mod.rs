@@ -40,9 +40,9 @@ trait OwnerLinkExt<T> where Self: Sized {
     fn as_weak_link(&self) -> WeakLink<T>;
 }
 
-#[cfg(box_link)]
+#[cfg(feature = "box-link")]
 type OwnerLink<T> = Box<Node<T>>;
-#[cfg(box_link)]
+#[cfg(feature = "box-link")]
 impl<T> OwnerLinkExt<T> for Box<Node<T>> {
     #[inline(always)]
     fn create(node: Node<T>) -> Self {
@@ -72,9 +72,9 @@ impl<T> OwnerLinkExt<T> for Box<Node<T>> {
     }
 }
 
-#[cfg(not(box_link))]
+#[cfg(not(feature = "box-link"))]
 type OwnerLink<T> = NonNull<Node<T>>;
-#[cfg(not(box_link))]
+#[cfg(not(feature = "box-link"))]
 impl<T> OwnerLinkExt<T> for NonNull<Node<T>> {
     #[inline(always)]
     fn create(node: Node<T>) -> Self {
