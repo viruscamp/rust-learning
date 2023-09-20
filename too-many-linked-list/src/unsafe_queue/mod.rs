@@ -19,87 +19,85 @@ mod test;
 /// ```
 pub struct List<T> {
     head: Link<T>,
-    tail: WeakLink<T>,
+    tail: WeakPtr<Node<T>>,
 }
 
-type Link<T> = Option<OwnerLink<T>>;
-
-//type WeakLink<T> = *mut Node<T>; // 无法使 `List<T>` 对 `T` 协变
-type WeakLink<T> = Option<NonNull<Node<T>>>;
+type Link<T> = Option<HeapOwner<Node<T>>>;
 
 struct Node<T> {
     elem: T,
     next: Link<T>,
 }
 
-trait OwnerLinkExt<T> where Self: Sized {
-    fn create(node: Node<T>) -> Self;
-    fn into_node(self) -> Node<T>;
-    fn ref_node(&self) -> &Node<T>;
-    fn mut_node(&mut self) -> &mut Node<T>;
-    fn as_weak_link(&self) -> WeakLink<T>;
+//type WeakPtr<T> = *mut T; // 无法使 `List<T>` 对 `T` 协变
+type WeakPtr<T> = Option<NonNull<T>>;
+
+trait HeapOwnerExt<T> where Self: Sized {
+    fn create(value: T) -> Self;
+    fn into_value(self) -> T;
+    fn as_ref_value(&self) -> &T;
+    fn as_mut_value(&mut self) -> &mut T;
+    fn as_weak_ptr(&self) -> WeakPtr<T>;
 }
 
-#[cfg(feature = "box-link")]
-type OwnerLink<T> = Box<Node<T>>;
-#[cfg(feature = "box-link")]
-impl<T> OwnerLinkExt<T> for Box<Node<T>> {
+#[cfg(feature = "heap-owner-box")]
+type HeapOwner<T> = Box<T>;
+#[cfg(feature = "heap-owner-box")]
+impl<T> HeapOwnerExt<T> for Box<T> {
     #[inline(always)]
-    fn create(node: Node<T>) -> Self {
+    fn create(node: T) -> Self {
         Box::new(node)
     }
 
     #[inline(always)]
-    fn into_node(self) -> Node<T> {
+    fn into_value(self) -> T {
         *self
     }
 
     #[inline(always)]
-    fn ref_node(&self) -> &Node<T> {
+    fn as_ref_value(&self) -> &T {
         self.as_ref()
     }
 
     #[inline(always)]
-    fn mut_node(&mut self) -> &mut Node<T> {
+    fn as_mut_value(&mut self) -> &mut T {
         self.as_mut()
     }
 
     #[inline(always)]
-    fn as_weak_link(&self) -> WeakLink<T> {
+    fn as_weak_ptr(&self) -> WeakPtr<T> {
         Some(unsafe {
             NonNull::new_unchecked(self.as_ref() as *const _ as *mut _)
         })
     }
 }
 
-#[cfg(not(feature = "box-link"))]
-type OwnerLink<T> = NonNull<Node<T>>;
-#[cfg(not(feature = "box-link"))]
-impl<T> OwnerLinkExt<T> for NonNull<Node<T>> {
+#[cfg(not(feature = "heap-owner-box"))]
+type HeapOwner<T> = NonNull<T>;
+#[cfg(not(feature = "heap-owner-box"))]
+impl<T> HeapOwnerExt<T> for NonNull<T> {
     #[inline(always)]
-    fn create(node: Node<T>) -> Self {
-        let b = Box::new(node);
-        unsafe { NonNull::new_unchecked(Box::leak(b)) }
+    fn create(value: T) -> Self {
+        unsafe { NonNull::new_unchecked(Box::into_raw(Box::new(value))) }
     }
 
     #[inline(always)]
-    fn into_node(self) -> Node<T> {
-        let b = unsafe { Box::from_raw(self.as_ptr()) };
-        *b
+    fn into_value(self) -> T {
+        *unsafe { Box::from_raw(self.as_ptr()) }
     }
 
     #[inline(always)]
-    fn ref_node(&self) -> &Node<T> {
+    fn as_ref_value(&self) -> &T {
         unsafe { self.as_ref() }
     }
 
     #[inline(always)]
-    fn mut_node(&mut self) -> &mut Node<T> {
+    fn as_mut_value(&mut self) -> &mut T {
         unsafe { self.as_mut() }
     }
     
     #[inline(always)]
-    fn as_weak_link(&self) -> WeakLink<T> {
+    fn as_weak_ptr(&self) -> WeakPtr<T> {
         Some(*self)
     }
 }
@@ -118,7 +116,7 @@ impl<T> List<T> {
     /// pop from head
     pub fn pop_front(&mut self) -> Option<T> {
         self.head.take().map(|old_head| {
-            let old_head = old_head.into_node();
+            let old_head = old_head.into_value();
             if old_head.next.is_none() {
                 self.tail = None;
             }
@@ -127,8 +125,8 @@ impl<T> List<T> {
         })
     }
     pub fn push_front(&mut self, elem: T) {
-        let new_node = OwnerLink::create(Node { elem, next: self.head.take() });
-        let new_node_ptr = new_node.as_weak_link();
+        let new_node = HeapOwner::create(Node { elem, next: self.head.take() });
+        let new_node_ptr = new_node.as_weak_ptr();
         self.head = Some(new_node);
         if self.tail.is_none() {
             self.tail = new_node_ptr;
@@ -136,8 +134,8 @@ impl<T> List<T> {
     }
     /// push to tail
     pub fn push_back(&mut self, elem: T) {
-        let new_node = OwnerLink::create(Node { elem, next: None });
-        let new_tail = new_node.as_weak_link();
+        let new_node = HeapOwner::create(Node { elem, next: None });
+        let new_tail = new_node.as_weak_ptr();
         match self.tail {
             None => {
                 self.head = Some(new_node);
@@ -152,27 +150,31 @@ impl<T> List<T> {
 
     pub fn peek(&self) -> Option<&T> {
         self.head.as_ref().map(|node| {
-            &node.ref_node().elem
+            &node.as_ref_value().elem
         })
     }
 
     pub fn peek_mut(&mut self) -> Option<&mut T> {
         self.head.as_mut().map(|node| {
-            &mut node.mut_node().elem
+            &mut node.as_mut_value().elem
         })
     }
 }
 
-/// 反转
+/// 原地反转
 pub fn reverse<T>(ls: &mut List<T>) {
-    let mut oldhead: Link<T> = ls.head.take();
-    let tail: WeakLink<T> = oldhead.as_ref()
-        .and_then(OwnerLinkExt::as_weak_link);
-    let mut head = None;
-    while let Some(mut node) = oldhead.take() {
-        oldhead = replace(&mut node.mut_node().next, head.take());
-        head = Some(node);
+    let newtail = ls.head.as_ref()
+        .and_then(HeapOwnerExt::as_weak_ptr);
+    let mut next = ls.head.take();
+    let mut newhead = None;
+    while let Some(mut node) = next.take() {
+        //next = node.as_mut_value().next.take();
+        //node.as_mut_value().next = newhead.take();
+        //newhead = Some(node);
+
+        next = replace(&mut node.as_mut_value().next, newhead.take());
+        newhead = Some(node);
     }
-    ls.head = head;
-    ls.tail = tail;
+    ls.head = newhead;
+    ls.tail = newtail;
 }

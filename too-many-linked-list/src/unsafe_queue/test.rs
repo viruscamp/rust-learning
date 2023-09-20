@@ -4,10 +4,10 @@ fn valid<T>(list: &List<T>) {
     match list.head.as_ref() {
         None => assert_eq!(list.tail, None),
         Some(mut node) => {
-            while let Some(next_node) = &node.ref_node().next {
+            while let Some(next_node) = &node.as_ref_value().next {
                 node = next_node;
             }
-            assert_eq!(list.tail.map(|ptr| ptr.as_ptr() as *const _), Some(node.ref_node() as *const _));
+            assert_eq!(list.tail.map(|ptr| ptr.as_ptr() as *const _), Some(node.as_ref_value() as *const _));
         },
     }
 }
