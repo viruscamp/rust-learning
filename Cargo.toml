@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     #"problem-1-duplicate-const-generic",
     #"problem-2-trait-extends",
@@ -15,4 +16,6 @@ members = [
     "too-many-linked-list",
     "advanced_fn",
     "float-cast",
+    "playground",
+    "coro-gen",
 ]

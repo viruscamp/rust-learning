@@ -20,23 +20,22 @@
 # 笔记
 0. 自引用结构体  
 ```rust
+// 如何表达对此类型的额外约束条件: &a as *const _ = b
 struct SelfRef {
     a: i32,
     b: *const i32, // 指向 a
 }
 
-fn new_self_ref(a: i32) -> SelfRef {
-    let mut sr = SelfRef {
-        a: a,
-        b: std::ptr::null(),
-    };
-    sr.b = &sr.a;
-    // 这里 sr 状态是对的
-    return sr;
-}
+let mut sr = SelfRef {
+    a: 4,
+    b: std::ptr::null(),
+}; // 此处非法
+sr.b = &sr.a; // 此处才合法
 
-let sr2 = new_self_ref(3);
-// sr2 状态已经不对了
+assert_eq!(&sr.a as *const i32, sr.b); // ok
+
+let sr2 = sr; // move 或 copy 导致的位置变动
+assert_eq!(&sr2.a as *const i32, sr2.b); // fail
 ```
 1. 异步函数闭包 基本都会用自引用结构体  
     大部分由 rust compiler 生成
@@ -80,52 +79,106 @@ let sr2 = new_self_ref(3);
 	- 非运行状态的`Future`(比如等待`.await`时)是会被传递的, 比如在多线程 Executor 变换执行线程
 
 # 代码实例
-- ## Pin 到 堆上 `Pin<Box<T>>`
+- ## Pin 住堆上值 `Pin<Box<T>>`
 ```rust
     struct T(i32, std::marker::PhantomPinned);
-    let mut t: T = T(3, std::marker::PhantomPinned);
+    let t: T = T(3, std::marker::PhantomPinned);
     let mut bt: Box<T> = Box::new(t);
     
-    // 1. 试图在 Pin 前偷一个 &mut T 失败
+    // 1. 试图在 Pin 前偷一个 &mut T, 在 pin 后使用
+    // 在 pin 时失败: cannot move out of `bt` because it is borrowed
     //let rt: &mut T = bt.borrow_mut();
 
     // 创建 !Unpin 的 Pin 是 unsafe
-    let mut pbt: core::pin::Pin<Box<T>> = unsafe { core::pin::Pin::new_unchecked(bt) };
+    // 从 1.63 开始有 safe 的做法了
+    let mut pbt = Box::into_pin(bt);
+
+    // 1. 试图在 Pin 前偷一个 &mut T, 在 pin 后使用
+    // rt;
 
     // 2. T: Unpin 时才有 get_mut 失败
     //let t1 = pbt.get_mut(); 
 
     // 3. 不是 &mut T 失败
-    let t2 = pbt.borrow_mut();
+    //let t2: &mut T = pbt.borrow_mut();
 
     // 4. 拿不到 Pin 的 Box, T 也拿不到 失败
     //let t4: T = Box::into_inner(pbt.what());
 ```
 
-- ## Pin 到 堆上 `Pin<Arc<T>>`
+- ## Pin 住堆上值 `Pin<Arc<T>>`
 ```rust
+    // safe 的做法
+    let mut pat: Pin<Arc<T>> = std::sync::Arc::pin(T(3, std::marker::PhantomPinned));
+
+    // 从已有 Arc<T> 创建 Pin<Arc<T>> 的 unsafe 做法
     let mut at = std::sync::Arc::new(T(3, std::marker::PhantomPinned));
     let mut at1 = at.clone();
-    let mut at = unsafe { core::pin::Pin::new_unchecked(at) };
-    
-    // 5. Arc 没有 as_mut 不能泄漏 &mut T 失败
+    let mut pat2 = unsafe { core::pin::Pin::new_unchecked(at) };
+
+    // 1. Arc 没有 as_mut 不能泄漏 &mut T 失败
     //let t3 = at1.as_mut();
 
-    // 6. 因为有 Pin 的 Arc 存在 失败
-    let t4 = std::sync::Arc::try_unwrap(at1);
+    // 2. 因为有 Pin 的 Arc 存在 失败: 得到 None
+    let t2 = at1.get_mut();
+
+    // 3. 因为有 Pin 的 Arc 存在 失败: 得到 Err(_)
+    let t3 = std::sync::Arc::try_unwrap(at1);
+
+    drop(pat2);
 ```
 
-- ## Pin 到栈上 `Pin<&mut T>` 与反例
+- ## Pin 住栈上值 `Pin<&mut T>`
 ```rust
-    let mut t: T = T(3, std::marker::PhantomPinned);
-    let mut t2: T = T(4, std::marker::PhantomPinned);
+    // 从 1.68 开始有
+    let mut pt = pin!(T(3, std::marker::PhantomPinned));
 
+    let mut t: T = T(3, std::marker::PhantomPinned);
+
+    // 以前的 unsafe 做法
     let pbt: core::pin::Pin<_> = unsafe { core::pin::Pin::new_unchecked(&mut t) };
 
-    // let t1 = pbt.get_mut(); // 虽然 Pin 这拿不到 &mut T
-    std::mem::swap(&mut t, &mut t2); // 反例 但之前保留的变量可用
+    // let t1 = pbt.get_mut(); // 不到 &mut T
+    
+    drop(pbt); // 延长
 ```
 
+# unsafe
+为什么 `core::pin::Pin::new_unchecked()` 是 unsafe 的.  
+从前面代码可看出 `Pin<Ptr<T>>` 存活期间, 无法通过 safe 代码获取 `&mut T`.  
+```rust
+    let mut t: T = T(3, std::marker::PhantomPinned);
+    let pbt: core::pin::Pin<_> = unsafe { core::pin::Pin::new_unchecked(&mut t) };
+    drop(pbt);
+
+    t.0 = 4; // 此处可以修改 T, 可能做出非法修改
+
+    let pbt2: core::pin::Pin<_> = unsafe { core::pin::Pin::new_unchecked(&mut t) }; // 新的 Pin 状态可能非法
+```
+rust 认为安全的创建 `Pin<Ptr<T>>` 的方法, 必须在之后就无法泄漏 t.
+```rust
+// move 变量到 Pin 内
+let mut pbt: Pin<Box<T>> = std::boxed::Box::pin(t);
+let mut pat: Pin<Arc<T>> = std::sync::Arc::pin(t);
+
+// 栈上临时变量, 通过临时变量生存期延迟, 绑定生存期到 pt
+let mut pt = pin!(T(3, std::marker::PhantomPinned));
+```
+
+# `!Unpin` 对象的一般需求
+假设有 `T: !Unpin` 和 `Ptr<T>: DerefMut<T>` 
+1. `Pin<Ptr<T>` 一定处于合法状态
+2. 提供对外的安全修改方法 `fn mutate(self: Pin<&mut Self>)`  
+    内部使用 unsafe 修改
+3. 外部不能显式构造  
+    显式构造意味着所有域都是 pub 的, 那么就可以创建, 修改到非法状态, pin
+4. 如果提供 `fn new() -> Self` 形式的构造函数
+4.1 初始状态可以安全 move
+4.2 初始状态下任意 pub 域修改后不影响安全 move
+4.4 初始状态下pub 的修改方法(`fn mutate1(&mut Self)`)调用后不影响安全 move
+5. 可以提供 `fn new() -> Pin<Box<Self>>` 形式的构造函数
+
+# 泛型约束
 Unpin 可以用于泛型约束，但是 !Unpin 不行。当需要区分时:
 ```rust
 #![feature(specialization)]

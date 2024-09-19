@@ -1,0 +1,9 @@
+cargo-features = ["edition2024"]
+
+[package]
+name = "coro-gen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gen-iter = { git = "https://github.com/viruscamp/gen-iter.git", branch = "coroutine" }
