@@ -18,4 +18,6 @@ members = [
     "float-cast",
     "playground",
     "coro-gen",
+    "arr_proc",
+    "share_clone",
 ]

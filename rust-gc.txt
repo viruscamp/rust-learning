@@ -1,0 +1,176 @@
+gc 保存所有受管对象
+
+impl Clone for Gc<T> {}
+
+impl Deref<T> for Gc<T> {}
+
+// 多线程 gc
+impl<T: Send> unsafe Send for Gc<T> {}
+
+// 创建对象转移给 gc , 得到 gc引用
+let gct = Gc::new(T());
+
+// 复制 gc引用
+let gct2 = gct.clone();
+
+thread::start(move || {
+	gct2; // 移到另一线程
+});
+
+mark&sweep 可以解决循环引用
+
+#[use_gc]
+fn xxx() {
+	let gct = Gc::new(T());
+	let gct2 = gct.clone();
+	let gct3 = Gc::new(T());
+	
+	gc!(); // 手动插入 gc 点
+	// gc 宏其实为
+	// 1. 存活通知, 非常类似于 yield 保存局部变量的方法
+	// 搜集所有局部变量, 对 impl GcNotify 的调用 gc_notify
+	// 2. 调用 gc 收集所有不存活 gc对象
+	
+	// 可以直接实现成 coroutine
+	// 只要 coroutine 生成的状态机 impl GcNotify
+}
+
+impl GcNotify for Gc<T> {} // 最底层
+
+#[derive(GcNotify)]
+struct ContainGc {
+	i: i32;
+	gc1: Gc<Mutex<u64>>;
+}
+
+impl GcNotify for Option<T: GcNotify> {}
+impl GcNotify for Box<T: GcNotify> {}
+impl GcNotify for Rc<T: GcNotify> {}
+impl GcNotify for Vec<T: GcNotify> {}
+......
+
+
+多线程
+创建 和 share 都是存活通知
+当gc线程执行时, 不管其他线程存活通知是不是过时, 存活的肯定不能删，
+存活通知到gc执行之间, 创建 和 share 的不会删
+存活通知到gc执行之间, 失效的, 会保留到下次存活gc之后
+
+
+
+
+Trace
+	every struct may contain a Gc<T> or another Trace
+v	Box<Gc<T>>
+v	Option<Gc<T>>
+
+x	Box<i32>
+x	u64
+
+v	Box<T:Trace>
+
+impl Trace for Gc<T>
+
+impl Trace for Option<T: Trace>
+impl Trace for Box<T: Trace>
+impl Trace for Vec<T: Trace>
+impl Trace for Rc<T: Trace>
+impl Trace for Arc<T: Trace>
+
+
+if a struct or enum contain one or more field of Trace, it must be Trace
+
+目前的 auto trait 是所有字段都有 T1 , 则包含的struct 实现T1, 与 Trace 要求不符
+
+Finalize
+	may be put in Gc<T>
+
+if a struct or enum contain one or more field of Finalize, it must be Finalize
+
+
+java 和 dotnet ，go 大部分动态语言
+1. 插入函数safepoint， vm在safepoint暂停执行，非vm的在safepoint插入语句，调用 gc
+2. gc 了解栈布局，栈上每个变量槽是什么类型，每个类型的子项，即使是private它也能读
+	所有全局变量， 调用栈 ， 作为 root
+	1. mark  从 root 递归找到所有 gc 对象, 标记为可达
+	2. sweep 没有标记可达的 gc对象，回收 (gc知道所有受管对象)
+
+reference-count 缺点
+1. 成环无法回收
+2. clone, drop 操作有 ref_count 修改，降低性能，特别是多线程
+
+大部分 rust 的 gc 都对放入元素有限制，大量的 std 类型需要实现，第三方crate类型无法放入
+trait Trace {}
+struct Gc<T: Trace> {}
+
+1. rust-gc 的实现
+1. 因为没有safepoint, 没有实现多线程gc，gc的调用时机为
+fn collect_garbage(st: &mut GcState)
+*	insert_gcbox()  最普遍，创建 gc 管理的对象时 Gc::new() Gc<T>::from(Box<T>)
+	force_collect() 强制调用
+	GcState::drop() gc管理器退出时 thread_local gc_root
+
+2. 因为不能扫栈，无法了解栈上对象类型，无法读取private field，所以是一个混合了 reference-count 的算法
+多 Gc --> 单 GcBox
+Gc 有 root 标记(指针低位)
+GcBox 有 root_count， 有 mark 存活标记(root_count高位)
+
+Gc.new   root() root_count=1
+Gc.clone root() root_count+=1
+Gc.drop  unroot() -> if root { root_count-=1 }
+
+collect_garbage
+	1. trace 扫描所有 GcBox ,如果一个 GcBox 包含 a: Gc<T> , 则 a.unroot(), 应该无需对Gc递归
+	2. mark  以所有 root_count>1 的 GcBox 为起始，在 root_count==0 的 GcBox 中找出存活的, 标记 mark
+	3. collect 收集所有 unmarked 的 GcBox 到 sweep_list: Vec, 已mark的 unmark 
+	4. sweep 清除 sweep_list 内的 GcBox
+
+https://manishearth.github.io/blog/2021/04/05/a-tour-of-safe-tracing-gc-designs-in-rust/
+
+
+2. 带环检测的ref-count
+
+需要 Trace
+https://github.com/claytonwramsey/dumpster
+https://github.com/fitzgen/bacon-rajan-cc
+https://github.com/frengor/rust-cc
+
+不要 Trace
+https://github.com/artichoke/cactusref
+unsafe {
+    // tmd 弱智, 还不如 Trace 呢
+    // bookkeep that `right` has added an owning ref to `left`.
+    Rc::adopt_unchecked(&right, &left);
+}
+
+3. 基于 arena 的 Gc
+https://github.com/kyren/gc-arena
+
+
+如果我想做一个不带 ref-count 真正的 trace stack 的可达分析的 gc
+将所有需要 gc 的函数写成 Future ， 将 Future 实现 Trace，Future 的每个状态包含所有栈上对象，类型也是有的，大概需要编译器的帮助
+Future 的 await 就是 safepoint, 而 gc.new 内不是safepoint, 因为不能调用 future.trace
+
+let f = run(&gc);
+while let Yielded(_) = f.resume() {
+	f.trace(&gc);
+	gc.collect();
+}
+
+
+fn run(gc: &GcContext) -> Future + Trace {
+	return async || {
+		let x = gc.new(32);
+
+		let a = gc.new(Node);
+		let b = gc.new(Node);
+		a.p = b.clone();
+		b.p = a.clone();
+		drop(a);
+		drop(b);
+		await;
+		
+		println!(&x);
+	};
+}
+
