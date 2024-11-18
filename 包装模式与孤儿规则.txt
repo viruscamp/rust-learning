@@ -1,0 +1,14 @@
+newtype mode
+	1. float --> Meter 类型, 强调 Wrapper<T> 不是 T
+		Meter<float> 米 和 Kilo<float> 千克 不能相加 
+	2. 实现外部 trait 绕过孤儿规则, Wrapper<T> 就是 T
+		扩展 float 的功能, 
+
+rust newtype mode 绕过孤儿规则
+1. move 没问题
+	Wrapper<T> <--> T
+2. &Wrapper<T> --> &T 没问题
+	Deref DerefMut
+3. &T -> &Wrapper<T> 做不到
+	多包两个类型? Wrapper<&T> Wrapper<&mut T>
+
